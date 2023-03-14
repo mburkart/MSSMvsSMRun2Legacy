@@ -65,7 +65,7 @@ def parse_args():
 
 
 def main(args):
-    styles.ModTDRStyle(l=0.14, b=0.12)
+    styles.ModTDRStyle(l=0.14, b=0.12, r=0.042)
     # Read in input root file.
     if not os.path.exists(args.input):
         print("Input file {} does not exist.".format(args.input))
