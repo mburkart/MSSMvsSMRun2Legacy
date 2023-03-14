@@ -67,6 +67,7 @@ int main(int argc, char **argv) {
   typedef vector<pair<int, string>> Categories;
   using ch::syst::bin_id;
   using ch::JoinStr;
+  using ch::syst::SystMap;
 
   // Define program options
   string output_folder = "output_MSSMvsSM_Run2";
@@ -81,6 +82,7 @@ int main(int argc, char **argv) {
   bool use_mc = false;
   std::string mode = "control-plots";
   std::string chan;
+  std::string sm_gg_fractions = string(getenv("CMSSW_BASE")) + "/src/CombineHarvester/MSSMvsSMRun2Legacy/data/higgs_pt_reweighting_fullRun2.root";
 
   int era = 2016; // 2016, 2017 or 2018
   po::variables_map vm;
@@ -98,6 +100,7 @@ int main(int argc, char **argv) {
       ("use_mc", po::value<bool>(&use_mc)->default_value(use_mc))
       ("era", po::value<int>(&era)->default_value(era))
       ("mode", po::value<string>(&mode)->default_value(mode))
+      ("sm_gg_fractions", po::value<string>(&sm_gg_fractions)->default_value(sm_gg_fractions))
       ("help", "produce help message");
   po::store(po::command_line_parser(argc, argv).options(config).run(), vm);
   po::notify(vm);
@@ -162,17 +165,17 @@ int main(int argc, char **argv) {
 
   // Define background and signal processes
   map<string, VString> bkg_procs;
-  VString bkgs, bkgs_tt, bkgs_em, sm_signals, main_sm_signals, mssm_bbH_signals, hww_signals;
+  VString bkgs, bkgs_tt, bkgs_em, sm_signals, main_sm_signals, mssm_signals, hww_signals;
 
   sm_signals = {"WH125", "ZH125", "ttH125"};
   hww_signals = {"ggHWW125", "qqHWW125", "WHWW125", "ZHWW125"};
   main_sm_signals = {"ggH125", "qqH125"};
 
-  mssm_bbH_signals = {"bbH_500", "bbH_1400"};
-  auto all_signals = ch::JoinStr({main_sm_signals, sm_signals, hww_signals, mssm_bbH_signals});
+  mssm_signals = {"ggh_t_100", "ggh_b_100", "ggh_i_100", "ggh_t_1200", "ggh_b_1200", "ggh_i_1200"};
+  auto all_signals = ch::JoinStr({main_sm_signals, sm_signals, hww_signals, mssm_signals});
   if (mode == "categorisation-plots") {
-      mssm_bbH_signals = {"bbH_400"};
-      all_signals = ch::JoinStr({main_sm_signals, mssm_bbH_signals});
+      mssm_signals = {"bbH_400"};
+      all_signals = ch::JoinStr({main_sm_signals, mssm_signals});
   }
 
   bkgs = {"EMB", "ZL", "TTL", "VVL", "jetFakes"};
@@ -198,13 +201,6 @@ int main(int argc, char **argv) {
   bkg_procs["tt"] = bkgs_tt;
   bkg_procs["em"] = bkgs_em;
 
-
-  // Define MSSM model-independent mass parameter MH
-  RooRealVar MH("MH", "MH", 500., 90., 4000.);
-  if (mode == "categorisation-plots") {
-      MH.setVal(400.);
-  }
-  MH.setConstant(true);
 
   // Define categories
   map<string, Categories> cats;
@@ -249,10 +245,11 @@ int main(int argc, char **argv) {
     cb.AddProcesses({"*"}, {"htt"}, {era_tag}, {chn}, bkg_procs[chn], cats[chn], false);
     if (mode == "categorisation-plots") {
         cb.AddProcesses({""}, {"htt"}, {era_tag}, {chn}, main_sm_signals, cats[chn], false);
-        cb.AddProcesses({""}, {"htt"}, {era_tag}, {chn}, mssm_bbH_signals, cats[chn], true);
+        cb.AddProcesses({""}, {"htt"}, {era_tag}, {chn}, mssm_signals, cats[chn], true);
     }
     else {
-        cb.AddProcesses({""}, {"htt"}, {era_tag}, {chn}, main_sm_signals, cats[chn], true);
+        cb.AddProcesses({"*"}, {"htt"}, {era_tag}, {chn}, main_sm_signals, cats[chn], false);
+        cb.AddProcesses({""}, {"htt"}, {era_tag}, {chn}, mssm_signals, cats[chn], true);
     }
   }
 
@@ -265,6 +262,7 @@ int main(int argc, char **argv) {
   }
   // cb.PrintAll();
 
+  std::cout << "Trying to read out shapes" << std::endl;
   // Extract shapes from input ROOT files
   for (string chn : chns) {
     string input_file_base = input_dir[chn] + "htt_" + category + ".inputs-mssm-vs-sm-Run" + era_tag + ".root";
@@ -275,17 +273,22 @@ int main(int argc, char **argv) {
     cb.cp().channel({chn}).backgrounds().ExtractShapes(
       input_file_base, "$BIN/$PROCESS", "$BIN/$PROCESS_$SYSTEMATIC");
     if (mode == "categorisation-plots") {
-        cb.cp().channel({chn}).process(mssm_bbH_signals).ExtractShapes(
+        cb.cp().channel({chn}).process(mssm_signals).ExtractShapes(
           input_file_base, "$BIN/$PROCESS$MASS", "$BIN/$PROCESS$MASS_$SYSTEMATIC");
     }
     else {
-        cb.cp().channel({chn}).process(main_sm_signals).ExtractShapes(
+        cb.cp().channel({chn}).process(mssm_signals).ExtractShapes(
           input_file_base, "$BIN/$PROCESS$MASS", "$BIN/$PROCESS$MASS_$SYSTEMATIC");
     }
   }
+  std::cout << "Finished reading shapes..." << std::endl;
 
   // Delete processes (other than mssm signals) with 0 yield
   cb.FilterProcs([&](ch::Process *p) {
+    if (std::find(mssm_signals.begin(), mssm_signals.end(), p->process()) != mssm_signals.end())
+    {
+      return false;
+    }
     bool null_yield = !(p->rate() > 0.0);
     if (null_yield) {
       std::cout << "[WARNING] Removing process with null yield: \n ";
@@ -301,6 +304,10 @@ int main(int argc, char **argv) {
 
   // Modify systematic variations with yield <= 0
   cb.FilterSysts([&](ch::Systematic *s) {
+    if (std::find(mssm_signals.begin(), mssm_signals.end(), s->process()) != mssm_signals.end())
+    {
+      return false;
+    }
     // For remaining processes: Delete systematics since these result in a bogus norm error in combine for the remaining
     if (s->type() == "shape") {
       if (s->shape_u()->Integral() <= 0.0) {
@@ -507,6 +514,20 @@ int main(int argc, char **argv) {
 
   for(auto u : met_uncerts) ConvertShapesToLnN (cb.cp().process({"ZTT"}, false), u);
 
+  cb.cp().process({"ggh_i_100","ggh_i_1200"}).ForEachProc([&](ch::Process *p) {
+    if(p->rate() < 0.0){
+      std::cout << "[WARNING] Setting mssm inteference signal with negative yield to positive: \n ";
+      std::cout << ch::Process::PrintHeader << *p << "\n";
+      p->set_rate(p->rate()*-1.);
+
+      cb.cp()
+        .process({p->process()})
+        .bin({p->bin()})
+        .AddSyst(cb, "rate_minus","rateParam",SystMap<>::init(-1.0));
+      cb.GetParameter("rate_minus")->set_range(-1.0,-1.0);
+    }
+  });
+
   // At this point we can fix the negative bins for the remaining processes
   std::cout << "[INFO] Fixing negative bins.\n";
   cb.ForEachProc([](ch::Process *p) {
@@ -541,6 +562,7 @@ int main(int argc, char **argv) {
     binning["pt_tt_puppi_em_nobtag_lowmsv"] = {0.0, 10.0, 40.0, 120.0, 200.0, 300.0};
     binning["pt_tt_puppi_et_nobtag_lowmsv"] = {0.0, 120.0, 200.0, 300.0};
     binning["pt_tt_puppi_mt_nobtag_lowmsv"] = {0.0, 120.0, 200.0, 300.0};
+    binning["mt_m_sv_puppi"] = {0,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,220,240,260,300};
 
     for(auto b : cb.cp().bin_set())
     {
@@ -549,6 +571,11 @@ int main(int argc, char **argv) {
       {
           std::cout << "Rebinning by hand for variable, bin: " << var_bin <<  std::endl;
           cb.cp().bin({b}).VariableRebin(binning[var_bin]);
+      }
+      if(binning.find(b) != binning.end())
+      {
+          std::cout << "Rebinning by hand for variable, bin: " << b <<  std::endl;
+          cb.cp().bin({b}).VariableRebin(binning[b]);
       }
     }
   }
@@ -573,6 +600,39 @@ int main(int argc, char **argv) {
   cb.GetParameter("CMS_htt_ttbarShape")->set_err_d(-1.);
   cb.GetParameter("CMS_htt_ttbarShape")->set_err_u(1.);
 
+  // Add fractions for gluon fusion processes to get correct normalization
+  // of process sum
+  TFile fractions_sm(sm_gg_fractions.c_str());
+  std::cout << "[INFO] --> Loading WS: " << sm_gg_fractions.c_str() << std::endl;
+  RooWorkspace *w_sm = (RooWorkspace*)fractions_sm.Get("w");
+  for (float massvar: {100., 1200.}) {
+      w_sm->var("mh")->setVal(massvar);
+      double Tfrac = w_sm->function("ggh_t_MSSM_frac")->getVal();
+      double Bfrac = w_sm->function("ggh_b_MSSM_frac")->getVal();
+      double Ifrac = w_sm->function("ggh_i_MSSM_frac")->getVal();
+      if (Ifrac<0.) {
+        Ifrac=fabs(Ifrac);
+        // set a constant rate parameter = -1 for the interference
+        cb.cp()
+         .process({"ggh_i_"+std::to_string(int(massvar))})
+         .AddSyst(cb, "rate_minus_overall","rateParam",SystMap<>::init(-1.0));
+        cb.GetParameter("rate_minus_overall")->set_range(-1.0,-1.0);
+      }
+      std::cout << "setting fractions as t,b,i = " << Tfrac << "," << Bfrac << "," << Ifrac << std::endl;
+
+      cb.cp().process({"ggh_t_"+std::to_string(int(massvar))}).ForEachProc([&](ch::Process * proc) {
+        proc->set_rate(proc->rate()*Tfrac);
+       });
+
+      cb.cp().process({"ggh_b_"+std::to_string(int(massvar))}).ForEachProc([&](ch::Process * proc) {
+        proc->set_rate(proc->rate()*Bfrac);
+       });
+
+      cb.cp().process({"ggh_i_"+std::to_string(int(massvar))}).ForEachProc([&](ch::Process * proc) {
+        proc->set_rate(proc->rate()*Ifrac);
+       });
+  }
+  fractions_sm.Close();
   // Write out datacards. Naming convention important for rest of workflow. We
   // make one directory per chn-cat, one per chn and cmb. In this code we only
   // store the individual datacards for each directory to be combined later.
