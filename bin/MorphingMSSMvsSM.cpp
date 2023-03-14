@@ -139,6 +139,7 @@ int main(int argc, char **argv) {
   bool lowmass = false;
   bool prop_plot = false;
   bool cbyear_plot = false;
+  std::string cbyear_plot_mass = "1200";
 
   vector<string> mass_susy_ggH({}), mass_susy_qqH({}), parser_bkgs({}), parser_bkgs_em({}), parser_sm_signals({}), parser_main_sm_signals({});
 
@@ -194,6 +195,7 @@ int main(int argc, char **argv) {
       ("enable_bsm_lowmass", po::value<bool>(&enable_bsm_lowmass)->default_value(enable_bsm_lowmass))
       ("prop_plot", po::value<bool>(&prop_plot)->default_value(false))
       ("cbyear_plot", po::value<bool>(&cbyear_plot)->default_value(false))
+      ("cbyear_plot_mass", po::value<std::string>(&cbyear_plot_mass)->default_value(cbyear_plot_mass))
       ("help", "produce help message");
   po::store(po::command_line_parser(argc, argv).options(config).run(), vm);
   po::notify(vm);
@@ -621,13 +623,13 @@ int main(int argc, char **argv) {
     ggX_masses[2017] = {};
     ggX_masses[2016] = {};
   }
-  else if(cbyear_plot && variable=="mt_tot_puppi") {
-    SUSYggH_masses[2016] = {"1200"};
-    SUSYggH_masses[2017] = {"1200"};
-    SUSYggH_masses[2018] = {"1200"};
-    SUSYbbH_masses[2016] = {"1200"};
-    SUSYbbH_masses[2017] = {"1200"};
-    SUSYbbH_masses[2018] = {"1200"};
+  else if(cbyear_plot && variable=="mt_tot_puppi" && analysis == "bsm-model-indep") {
+    SUSYggH_masses[2016] = {cbyear_plot_mass};
+    SUSYggH_masses[2017] = {cbyear_plot_mass};
+    SUSYggH_masses[2018] = {cbyear_plot_mass};
+    SUSYbbH_masses[2016] = {cbyear_plot_mass};
+    SUSYbbH_masses[2017] = {cbyear_plot_mass};
+    SUSYbbH_masses[2018] = {cbyear_plot_mass};
 
     SUSYqqH_masses[2018] = {};
     SUSYqqH_masses[2017] = {};
@@ -2401,8 +2403,8 @@ int main(int argc, char **argv) {
       ws.import(*b_frac, RooFit::RecycleConflictNodes());
       ws.import(*i_frac, RooFit::RecycleConflictNodes());
     }
-    else if (prop_plot||cbyear_plot) {
-      if (variable=="mt_tot_puppi") w_sm->var("mh")->setVal(1200.);
+    else if (prop_plot||(cbyear_plot && analysis == "bsm-model-indep")) {
+      if (variable=="mt_tot_puppi") w_sm->var("mh")->setVal(std::stof(cbyear_plot_mass));
       else w_sm->var("mh")->setVal(100.);
       RooAbsReal *t_frac = w_sm->function("ggh_t_MSSM_frac");
       RooAbsReal *b_frac = w_sm->function("ggh_b_MSSM_frac");
