@@ -7,6 +7,8 @@ CHANNEL=$3
 
 if [[ "$CHANNEL" == mt ]]; then
     var="mt_1_puppi"
+elif [[ "$CHANNEL" == et ]]; then
+    var="mt_1_puppi"
 elif [[ "$CHANNEL" == em ]]; then
     var="pzeta"
 elif [[ "$CHANNEL" == cmb ]]; then
@@ -24,8 +26,8 @@ datacarddir=${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/categorisation
 
 case "$MODE" in
     "datacards")
-        if [[ ${CHANNEL} != mt && ${CHANNEL} != em ]]; then
-            echo "[ERROR] Channel for datacard step must be either em or mt."
+        if [[ ${CHANNEL} != mt && ${CHANNEL} != et && ${CHANNEL} != em ]]; then
+            echo "[ERROR] Channel for datacard step must be either em, mt or et."
             exit 1
         fi
         [[ ! -d  ${datacarddir} ]] && mkdir -p ${datacarddir}
@@ -69,7 +71,7 @@ case "$MODE" in
                                           --parallel 8 |& tee ${datacarddir}/prefit-shapes-creation.log
 
         hadd -f ${datacarddir}/combined/cmb/control-datacard-shapes-prefit.root ${datacarddir}/201?/htt_*/control-datacard-shapes-prefit.root |& tee -a ${datacarddir}/prefit-shapes-creation.log
-        for ch in mt em; do
+        for ch in mt em et; do
             hadd -f ${datacarddir}/combined/${ch}/control-datacard-shapes-prefit.root ${datacarddir}/201?/htt_${ch}*/control-datacard-shapes-prefit.root |& tee -a ${datacarddir}/prefit-shapes-creation.log
         done
         ;;
@@ -94,7 +96,7 @@ case "$MODE" in
             -w ${datacarddir}/combined/${CHANNEL}/ws.root \
             -o ${datacarddir}/combined/${CHANNEL}/control-datacard-shapes-postfit-b-${CHANNEL}_fit.root \
             -m 400 \
-            -f ${datacarddir}/combined/${fit_ch}/fitDiagnostics.combined.${fit_ch}.root:fit_b \
+            -f ${datacarddir}/combined/${ch_flag}/fitDiagnostics.combined.${ch_flag}.root:fit_b \
             --postfit --sampling --skip-prefit --total-shapes
         for cat in 301 302; do
             PostFitShapesFromWorkspace \
