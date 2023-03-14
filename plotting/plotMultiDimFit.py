@@ -18,6 +18,8 @@ parser.add_argument(
 parser.add_argument(
     '--sm-exp', default=[], nargs="+", help="""Input files for the SM expectation""")
 parser.add_argument(
+    '--mssm-exp', default=[], nargs="+", help="""Input files for the MSSM expectation""")
+parser.add_argument(
     '--bg-exp', default=[], nargs="+", help="""Input files for the backgroud only expectation""")
 parser.add_argument(
     '--cms-sub', default='Internal', help="""Text below the CMS logo""")
@@ -79,7 +81,13 @@ if args.sm_exp:
     best_sm = plot.TGraphFromTree(
         limit_sm, "r_ggH", "r_bbH", 'deltaNLL == 0')
     plot.RemoveGraphXDuplicates(best_sm)
-hists.SetMaximum(6)
+if args.mssm_exp:
+    limit_mssm = plot.MakeTChain(args.mssm_exp, 'limit')
+    best_mssm = plot.TGraphFromTree(
+        limit_mssm, "r_ggH", "r_bbH", 'deltaNLL == 0')
+    plot.RemoveGraphXDuplicates(best_mssm)
+
+hists.SetMaximum(20)
 hists.SetMinimum(0)
 hists.SetContour(255)
 # c2=ROOT.TCanvas()
@@ -108,6 +116,7 @@ for pad in pads:
     pad.SetTickx()
     pad.SetTicky()
 ROOT.TGaxis.SetMaxDigits(3)
+
 # ROOT.TGaxis.SetExponentOffset(-0.025, -0.05, "X")
 # ROOT.TGaxis.SetExponentOffset(-0.037, -0.06, "X")
 
@@ -128,8 +137,11 @@ if debug is not None:
 
 if args.sm_exp or args.bg_exp:
     legend = plot.PositionedLegend(0.5, 0.25, 3, 0.015)
+elif args.mssm_exp:
+    legend = plot.PositionedLegend(0.48, 0.33, 3, 0.015)
 else:
-     legend = plot.PositionedLegend(0.3, 0.2, 3, 0.015)
+    # legend = plot.PositionedLegend(0.3, 0.2, 3, 0.015)
+    legend = plot.PositionedLegend(0.3, 0.33, 3, 0.015)
 
 legend.SetFillStyle(0)
 
@@ -188,6 +200,8 @@ best.SetMarkerStyle(34)
 best.SetMarkerSize(3)
 best.Draw("P SAME")
 legend.AddEntry(best, "Best fit", "P")
+legend.SetMargin(0.15*0.5/0.3)
+legend.AddEntry("", "", "")
 if args.sm_exp:
     best_sm.SetMarkerStyle(33)
     best_sm.SetMarkerColor(1)
@@ -200,13 +214,27 @@ if args.bg_exp:
     best_bg.SetMarkerSize(3)
     best_bg.Draw("P SAME")
     legend.AddEntry(best_bg, "Expected for background only", "P")
+if args.mssm_exp:
+    best_mssm.SetMarkerStyle(33)
+    best_mssm.SetMarkerColor(1)
+    best_mssm.SetMarkerSize(3.0)
+    best_mssm.Draw("P SAME")
+    # legend.AddEntry("", "", "")
+    legend.AddEntry(best_mssm, "#splitline{M_{#lower[-0.2]{h}}^{125} scenario}"
+                               "{(m_{#lower[-0.3]{A}}=1.2#kern[0.16667]{T}eV, tan#kern[0.16667]{#beta}=17)}", "P")
+    legend.SetMargin(0.15)
 
-
-if args.mass:
-    legend.SetHeader("m_{#phi} = "+args.mass+" GeV")
+if args.mass != "":
+    if float(args.mass) < 1000:
+        legend.SetHeader("m_{{#phi}} = {ms} GeV".format(ms=args.mass))
+    else:
+        legend.SetHeader("m_{{#phi}} = {ms:.1f} TeV".format(ms=float(args.mass)/1000))
 legend.Draw("SAME")
+legend.SetTextSize(0.043)
 if args.sm_exp:
     overlayLegend,overlayGraphs = plot.getOverlayMarkerAndLegend(legend, {legend.GetNRows()-1 : best_sm}, {legend.GetNRows()-1 : {"MarkerColor" : 2}}, markerStyle="P")
+if args.mssm_exp:
+    overlayLegend,overlayGraphs = plot.getOverlayMarkerAndLegend(legend, {legend.GetNRows()-1 : best_mssm}, {legend.GetNRows()-1 : {"MarkerColor" : ROOT.kAzure+6}}, markerStyle="P")
 
 plot.DrawCMSLogo(pads[0], 'CMS', args.cms_sub, 11, 0.045, 0.035, 1.2, '', 1.0)
 plot.DrawTitle(pads[0], args.title_right, 3)
@@ -214,6 +242,11 @@ plot.DrawTitle(pads[0], args.title_left, 1)
 plot.FixOverlay()
 if args.sm_exp:
     best_sm.Draw("P SAME")
+    for overlayGraph in overlayGraphs:
+        overlayGraph.Draw("P SAME")
+    overlayLegend.Draw("SAME")
+if args.mssm_exp:
+    best_mssm.Draw("P SAME")
     for overlayGraph in overlayGraphs:
         overlayGraph.Draw("P SAME")
     overlayLegend.Draw("SAME")
