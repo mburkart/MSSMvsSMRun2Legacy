@@ -1773,10 +1773,10 @@ int main(int argc, char **argv) {
   // Unless we use the prop_plot option in which case we just set the inteference to 0 if it goes negative 
 
   ch::CombineHarvester procs_no_i;
-  if(prop_plot || cbyear_plot) procs_no_i = cb.cp();
+  if(prop_plot || (cbyear_plot && analysis == "bsm-model-indep")) procs_no_i = cb.cp();
   else procs_no_i = cb.cp().process({"ggH_i","ggh_i","ggA_i", "ggH1_i", "ggH2_i", "ggH3_i","ggH_i_lowmass","ggh_i_lowmass","ggA_i_lowmass", "ggH1_i_lowmass", "ggH2_i_lowmass", "ggH3_i_lowmass","ggX_i"}, false);
 
-  if(prop_plot||cbyear_plot){
+  if(prop_plot|| (cbyear_plot && analysis == "bsm-model-indep")){
      // for prop_plot option if the inteference is negative we scale it positive and then add a rate parameter which will scale it negative again in the end 
 
 
@@ -2314,12 +2314,19 @@ int main(int argc, char **argv) {
   // the form: {analysis}_{channel}_{bin_id}_{era}
   ch::SetStandardBinNames(cb, "$ANALYSIS_$CHANNEL_$BINID_$ERA");
   ch::CombineHarvester cb_obs = cb.deep().backgrounds();
-
+  // Make copy of datacards before morphing for channel combined
+  // years plot for model-dependent limits as rebinning has to 
+  // happen before morphing and will be done later.
+  ch::CombineHarvester cb_cp;
+  if (cbyear_plot && (analysis == "bsm-model-dep-full" || analysis == "bsm-model-dep-additional")) {
+      cb_cp = cb.deep();
+  }
   // Adding bin-by-bin uncertainties
   if (use_automc) {
     std::cout << "[INFO] Adding bin-by-bin uncertainties.\n";
     cb.SetAutoMCStats(cb, 0.);
   }
+
   // Setup morphed mssm signals for bsm analyses
   RooWorkspace ws("htt", "htt");
 
@@ -2371,7 +2378,7 @@ int main(int argc, char **argv) {
     TFile fractions_sm(sm_gg_fractions.c_str());
     std::cout << "[INFO] --> Loading WS: " << sm_gg_fractions.c_str() << std::endl;
     RooWorkspace *w_sm = (RooWorkspace*)fractions_sm.Get("w");
-    if(do_morph && !(prop_plot||cbyear_plot)) {
+    if(do_morph && !(prop_plot||(cbyear_plot && analysis == "bms-model-indep"))) {
       //w_sm->var("Yb_MSSM_h")->setVal(0.); // un-comment to remove bottom and top-bottom contirbutions (top only)
       //w_sm->var("Yt_MSSM_h")->setVal(0.); // un-comment to remove top and top-bottom contirbutions (bottom only)
       w_sm->var("mh")->SetName("MH");
@@ -2457,7 +2464,7 @@ int main(int argc, char **argv) {
   }
 
   dout("[INFO] Prepare demo.");
-  if(do_morph && !(prop_plot||cbyear_plot) && (analysis == "bsm-model-indep" || analysis == "bsm-model-dep-additional" || analysis == "bsm-model-dep-full"))
+  if(do_morph && !(prop_plot||(cbyear_plot && analysis == "bsm-model-indep")) && (analysis == "bsm-model-indep" || analysis == "bsm-model-dep-additional" || analysis == "bsm-model-dep-full"))
   {
     //TFile morphing_demo(("htt_mssm_morphing_" + category+ "_"  + era_tag + "_" + analysis + "_demo.root").c_str(), "RECREATE");
 
@@ -2521,7 +2528,7 @@ int main(int argc, char **argv) {
      proc->set_rate(proc->rate()*Ifrac);
     });
   }
-  else if(prop_plot || cbyear_plot){
+  else if(prop_plot || (cbyear_plot && analysis == "bsm-model-indep")){
 
    // TODO: for high masses, this makes only a little difference, but why required? Problem with negative value below?
    double Tfrac = ws.function("ggh_t_frac")->getVal();
@@ -2533,7 +2540,10 @@ int main(int argc, char **argv) {
      cb.cp()
       .process({"ggh_i"})
       .AddSyst(cb, "rate_minus_overall","rateParam",SystMap<>::init(-1.0));
-     cb.GetParameter("rate_minus_overall")->set_range(-1.0,-1.0);
+     auto rpar = cb.GetParameter("rate_minus_overall");
+     if (rpar) {
+       rpar->set_range(-1.0,-1.0);
+     }
    }
    std::cout << "setting fractions as t,b,i = " << Tfrac << "," << Bfrac << "," << Ifrac << std::endl;
 
@@ -2549,8 +2559,7 @@ int main(int argc, char **argv) {
      proc->set_rate(proc->rate()*Ifrac);
     });
   }
-  ch::CombineHarvester cb_cp;
-  if(prop_plot || cbyear_plot) cb_cp = cb.deep();
+  if(prop_plot || (cbyear_plot && analysis == "bsm-model-indep")) cb_cp = cb.deep();
 
   std::cout << "[INFO] Writing datacards to " << output_folder << std::endl;
   // We need to do this to make sure the ttbarShape uncertainty is added properly when we use a shapeU
@@ -2741,71 +2750,107 @@ int main(int argc, char **argv) {
   }
   if (cbyear_plot) {
 
+    std::cout << "Trying to get common binning for histograms" << std::endl;
     // set common binning here (must use common bin boundaries). 
     // if similar plots are required for other channels need to define these seperatly
     std::map<string, vector<double>> binnings; 
-    binnings["htt_tt_32"] =  {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1100.0, 1300.0, 5000.0};
-    binnings["htt_tt_35"] =  {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 900.0, 5000.0};
+    if (analysis == "bsm-model-indep") {
 
-    binnings["htt_em_32"] =  {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
-    binnings["htt_em_33"] =  {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
-    binnings["htt_em_34"] =  {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
-    binnings["htt_em_35"] =  {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
-    binnings["htt_em_36"] =  {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1100.0, 5000.0};
-    binnings["htt_em_37"] =  {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 800.0, 1100.0, 5000.0};
+        binnings["htt_tt_32"] =  {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1100.0, 1300.0, 5000.0};
+        binnings["htt_tt_35"] =  {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 900.0, 5000.0};
 
-
-    binnings["htt_lt_32"] =  {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1100.0, 5000.0};
-    binnings["htt_lt_33"] =  {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0} ;
-    binnings["htt_lt_35"] =  {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 900.0, 5000.0};
-    binnings["htt_lt_36"] =  {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 5000.0} ;
+        binnings["htt_em_32"] =  {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
+        binnings["htt_em_33"] =  {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
+        binnings["htt_em_34"] =  {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
+        binnings["htt_em_35"] =  {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
+        binnings["htt_em_36"] =  {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1100.0, 5000.0};
+        binnings["htt_em_37"] =  {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 800.0, 1100.0, 5000.0};
 
 
-    binnings["htt_em_133"] =  {0.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_em_132"] =  {0.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_et_132"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_mt_132"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_lt_132"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_tt_132"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_em_233"] =  {0.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_em_232"] =  {0.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_et_232"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_mt_232"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_lt_232"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_tt_232"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_em_333"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_em_332"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_et_332"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_mt_332"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_lt_332"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_tt_332"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_em_433"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_em_432"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_et_432"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_mt_432"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_lt_432"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
-    binnings["htt_tt_432"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_lt_32"] =  {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1100.0, 5000.0};
+        binnings["htt_lt_33"] =  {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0} ;
+        binnings["htt_lt_35"] =  {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 900.0, 5000.0};
+        binnings["htt_lt_36"] =  {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 5000.0} ;
+        binnings["htt_em_2"] = {100., 110., 120., 130., 140., 150., 160., 170., 180., 190., 200., 225., 250., 275., 300., 325., 350., 400., 450., 500., 600., 700., 800., 900., 1100.};
 
-    if(variable=="m_sv_puppi") {
 
-      binnings["htt_em_35"] =  {0.0, 60.0, 80.0, 90.0, 100.0, 110.0, 120.0, 140.0, 160.0, 180.0, 200.0, 240.0, 300.0} ;
-      binnings["htt_em_36"] =  {0.0, 60.0, 80.0, 90.0, 100.0, 110.0, 120.0, 140.0, 160.0, 180.0, 200.0, 240.0, 300.0} ;
-      binnings["htt_et_35"] =  {0.0, 60.0, 80.0, 90.0, 100.0, 110.0, 120.0, 140.0, 160.0, 180.0, 200.0, 240.0, 300.0} ;
-      binnings["htt_mt_35"] =  {0.0, 60.0, 80.0, 90.0, 100.0, 110.0, 120.0, 140.0, 160.0, 180.0, 200.0, 240.0, 300.0} ;
-      binnings["htt_lt_35"] =  {0.0, 60.0, 80.0, 90.0, 100.0, 110.0, 120.0, 140.0, 160.0, 180.0, 200.0, 240.0, 300.0} ;
-      binnings["htt_tt_35"] =  {0.0, 60.0, 80.0, 90.0, 100.0, 110.0, 120.0, 140.0, 160.0, 180.0, 200.0, 240.0, 300.0} ;
+        binnings["htt_em_133"] =  {0.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_em_132"] =  {0.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_et_132"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_mt_132"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_lt_132"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_tt_132"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_em_233"] =  {0.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_em_232"] =  {0.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_et_232"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_mt_232"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_lt_232"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_tt_232"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_em_333"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_em_332"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_et_332"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_mt_332"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_lt_332"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_tt_332"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_em_433"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_em_432"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_et_432"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_mt_432"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_lt_432"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
+        binnings["htt_tt_432"] =  {0.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 220.0, 240.0, 260.0, 300.0} ;
 
+        if(variable=="m_sv_puppi") {
+
+          binnings["htt_em_35"] =  {0.0, 60.0, 80.0, 90.0, 100.0, 110.0, 120.0, 140.0, 160.0, 180.0, 200.0, 240.0, 300.0} ;
+          binnings["htt_em_36"] =  {0.0, 60.0, 80.0, 90.0, 100.0, 110.0, 120.0, 140.0, 160.0, 180.0, 200.0, 240.0, 300.0} ;
+          binnings["htt_et_35"] =  {0.0, 60.0, 80.0, 90.0, 100.0, 110.0, 120.0, 140.0, 160.0, 180.0, 200.0, 240.0, 300.0} ;
+          binnings["htt_mt_35"] =  {0.0, 60.0, 80.0, 90.0, 100.0, 110.0, 120.0, 140.0, 160.0, 180.0, 200.0, 240.0, 300.0} ;
+          binnings["htt_lt_35"] =  {0.0, 60.0, 80.0, 90.0, 100.0, 110.0, 120.0, 140.0, 160.0, 180.0, 200.0, 240.0, 300.0} ;
+          binnings["htt_tt_35"] =  {0.0, 60.0, 80.0, 90.0, 100.0, 110.0, 120.0, 140.0, 160.0, 180.0, 200.0, 240.0, 300.0} ;
+        }
+    }
+    else {
+        binnings["htt_em_32"] = {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
+        binnings["htt_em_33"] = {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
+        binnings["htt_em_34"] = {0.0, 50.0, 60.0, 70.0, 80.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
+        binnings["htt_em_35"] = {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
+        binnings["htt_em_36"] = {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1100.0, 5000.0};
+        binnings["htt_em_37"] = {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 800.0, 1100.0, 5000.0};
+        binnings["htt_lt_32"] = {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1100.0, 5000.0};
+        binnings["htt_lt_33"] = {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 5000.0};
+        binnings["htt_lt_35"] = {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 900.0, 5000.0};
+        binnings["htt_lt_36"] = {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 5000.0};
+        binnings["htt_tt_32"] = {0.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0, 225.0, 250.0, 275.0, 300.0, 325.0, 350.0, 400.0, 450.0, 500.0, 600.0, 700.0, 800.0, 900.0, 1100.0, 1300.0, 5000.0};
+        binnings["htt_tt_35"] = {0.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 250.0, 300.0, 350.0, 400.0, 500.0, 600.0, 700.0, 900.0, 5000.0};
     }
 
     vector<int> bins = {}; 
 
     for (auto chn : chns) {
-      if(variable=="m_sv_VS_pt_tt_splitpT" || variable=="m_sv_puppi") bins = {132,232,332,432,35};
-      else bins = {32,33,35,36};
+      if (analysis == "bsm-model-indep") {
+          if(variable=="m_sv_VS_pt_tt_splitpT" || variable=="m_sv_puppi") bins = {132,232,332,432,35};
+          else {
+              bins = {32,33,35,36};
+          }
 
-      if(chn=="em") {
-        if(variable=="m_sv_VS_pt_tt_splitpT"|| variable=="m_sv_puppi") bins = {132,232,332,432,35,133,233,333,433,36};
-        else bins = {32,33,34,35,36,37};
+          if (chn=="em") {
+            if(variable=="m_sv_VS_pt_tt_splitpT"|| variable=="m_sv_puppi") bins = {132,232,332,432,35,133,233,333,433,36};
+            else bins = {2,32,33,34,35,36,37};
+          }
+      }
+      else {
+          if (chn=="tt") {
+              bins = {32, 35};
+          }
+          else if (chn=="mt") {
+              bins = {32, 33, 35, 36};
+          }
+          else if (chn=="et") {
+              bins = {32, 33, 35, 36};
+          }
+          else if (chn=="em") {
+              bins = {32, 33, 34, 35, 36, 37};
+          }
       }
 
       for (auto bin : bins) {
@@ -2814,7 +2859,9 @@ int main(int argc, char **argv) {
         string bin_name = "htt_"+chn_name+"_"+to_string(bin);
         if(chn=="em" && (bin==133 || bin==233 || bin==333 || bin==433 || bin==36) && (variable=="m_sv_VS_pt_tt_splitpT"|| variable=="m_sv_puppi")) bin_name = "htt_"+chn_name+"_"+to_string(bin-1);
         if(binnings.find(bin_name) == binnings.end()) continue;
+        std::cout << "Trying to get binning for bin " << bin_name << std::endl;
         auto new_bins = binnings[bin_name];
+        std::cout << "Successfully found binning." << std::endl;
         TH1F proto("proto", "proto", new_bins.size()-1, new_bins.data());
 
         ch::CombineHarvester cmb_bin = std::move(cb_cp.cp().channel({chn}).bin_id({bin}));
@@ -2860,16 +2907,86 @@ int main(int argc, char **argv) {
           e->set_shapes(std::move(new_hu), std::move(new_hd), nullptr);
         });
 
-        ch::CardWriter writer(output_folder + "/" + "/$TAG/$BIN.txt",
-                              output_folder + "/" + "/$TAG/common/$BIN_input.root");
+        // Adding bin-by-bin uncertainties
+        // if (use_automc) {
+        //   std::cout << "[INFO] Adding bin-by-bin uncertainties.\n";
+        //   cb_cp.SetAutoMCStats(cb, 0.);
+        // }
+        // For the model-indendent case we can write the datacards directly in
+        // this loop. For model dependent we need to morph first and write out
+        // in a second loop.
+        if (analysis == "bsm-model-indep") {
+            ch::CardWriter writer(output_folder + "/" + "/$TAG/$BIN.txt",
+                                  output_folder + "/" + "/$TAG/common/$BIN_input.root");
 
-        if(variable=="mt_tot_puppi") {
-          writer.WriteCards(bin_name+"_mt_tot", cb_cp.cp().channel({chn}).bin_id({bin}));
-        } else {
-          writer.WriteCards(bin_name, cb_cp.cp().channel({chn}).bin_id({bin}));
+            if(variable=="mt_tot_puppi") {
+              if (chn == "em" && bin == 2) {
+                  writer.SetWildcardMasses({});
+              }
+              writer.WriteCards(bin_name+"_mt_tot", cb_cp.cp().channel({chn}).bin_id({bin}));
+            } else {
+              writer.WriteCards(bin_name, cb_cp.cp().channel({chn}).bin_id({bin}));
+            }
         }
       }
     }
-  } 
+    if (analysis == "bsm-model-dep-full" || analysis == "bsm-model-dep-additional") {
+        // Adding bin-by-bin uncertainties
+        if (use_automc) {
+          std::cout << "[INFO] Adding bin-by-bin uncertainties.\n";
+          cb_cp.SetAutoMCStats(cb, 0.);
+        }
+        ch::CombineHarvester cb_obs_cp = cb_cp.deep().backgrounds();
+        // Perform model-dependent morphing before writting datacards with combined binning
+        // This is necessary to be able to obtain the correct signal prescription from the combined
+        // datacards.
+        RooWorkspace ws_cp("htt_cmb", "htt_cmb");
+        std::cout << "[INFO] Performing template morphing for mssm ggh and bbh for combined plots.\n";
+        auto morphFactory = ch::CMSHistFuncFactory();
+        morphFactory.SetHorizontalMorphingVariable(mass_var);
+        morphFactory.Run(cb_cp, ws_cp, process_norm_map);
+
+        cb_cp.AddWorkspace(ws_cp);
+        cb_cp.ExtractPdfs(cb_cp, "htt_cmb", "$BIN_$PROCESS_morph");
+        cb_cp.ExtractData("htt_cmb", "$BIN_data_obs");
+        std::cout << "[INFO] Finished template morphing for mssm ggh and bbh for combined plots.\n";
+        for (auto chn: chns) {
+            if (chn=="tt") {
+                bins = {32, 35};
+            }
+            else if (chn=="mt") {
+                bins = {32, 33, 35, 36};
+            }
+            else if (chn=="et") {
+                bins = {32, 33, 35, 36};
+            }
+            else if (chn=="em") {
+                bins = {32, 33, 34, 35, 36, 37};
+            }
+            for (auto bin: bins) {
+                string chn_name = chn;
+                if (chn == "et" || chn == "mt") chn_name = "lt";
+                string bin_name = "htt_"+chn_name+"_"+to_string(bin);
+                ch::CardWriter writer(output_folder + "/" + "/$TAG/$BIN.txt",
+                                      output_folder + "/" + "/$TAG/common/$BIN_input.root");
+                // We're not using mass as an identifier - which we need to tell the
+                // CardWriter
+                // otherwise it will see "*" as the mass value for every object and skip it
+                writer.SetWildcardMasses({});
+                writer.WriteCards(bin_name, cb_cp.cp().channel({chn}).bin_id({bin}));
+
+                ch::CardWriter writer_restore(output_folder + "/restore_binning_combined/$BIN.txt",
+                                              output_folder + "/restore_binning_combined/common/$BIN_input.root");
+
+                // We're not using mass as an identifier - which we need to tell the
+                // CardWriter
+                // otherwise it will see "*" as the mass value for every object and skip it
+                writer_restore.SetWildcardMasses({});
+
+                writer_restore.WriteCards("", cb_obs_cp);
+            }
+        }
+    }
+  }
 
 }
