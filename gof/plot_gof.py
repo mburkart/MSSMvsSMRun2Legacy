@@ -22,37 +22,45 @@ logger.addHandler(handler)
 
 category_dict = {
     "et": {
-        "32": r"No b-tag, Tight $m_{T}$",
-        "33": r"No b-tag, Loose $m_{T}$",
-        "35": r"b-tag, Tight $m_{T}$",
-        "36": r"b-tag, Loose $m_{T}$",
+        "32": r"No b tag, Tight-$m_{\mathrm{T}}$",
+        "33": r"No b tag, Loose-$m_{\mathrm{T}}$",
+        "35": r"b tag, Tight-$m_{\mathrm{T}}$",
+        "36": r"b tag, Loose-$m_{\mathrm{T}}$",
     },
     "mt": {
-        "32": r"No b-tag, Tight $m_{T}$",
-        "33": r"No b-tag, Loose $m_{T}$",
-        "35": r"b-tag, Tight $m_{T}$",
-        "36": r"b-tag, Loose $m_{T}$",
+        "32": r"No b tag, Tight-$m_{\mathrm{T}}$",
+        "33": r"No b tag, Loose-$m_{\mathrm{T}}$",
+        "35": r"b tag, Tight-$m_{\mathrm{T}}$",
+        "36": r"b tag, Loose-$m_{\mathrm{T}}$",
     },
     "em": {
         "2": "ttbar control",
-        "32": r"No b-tag, high $d_{\zeta}$",
-        "33": r"No b-tag, medium $d_{\zeta}$",
-        "34": r"No b-tag, low $d_{\zeta}$",
-        "35": r"b-tag, high $d_{\zeta}$",
-        "36": r"b-tag, medium $d_{\zeta}$",
-        "37": r"b-tag, low $d_{\zeta}$",
+        "32": r"No b tag, High-$D_{\zeta}$",
+        "33": r"No b tag, Medium-$D_{\zeta}$",
+        "34": r"No b tag, Low-$D_{\zeta}$",
+        "35": r"b tag, High-$D_{\zeta}$",
+        "36": r"b tag, Medium-$D_{\zeta}$",
+        "37": r"b tag, Low-$D_{\zeta}$",
     },
     "tt": {
-        "32": "No b-tag",
-        "35": "b-tag",
+        "32": "No b tag",
+        "35": "b tag",
     },
 }
 
+lumi_dict = {
+    "2016": r"$\bf{CMS}$ data $35.9 \, \mathrm{fb}^{-1}$ (2016, 13 TeV)",
+    "2017": r"$\bf{CMS}$ data $41.5 \, \mathrm{fb}^{-1}$ (2017, 13 TeV)",
+    "2018": r"$\bf{CMS}$ data $59.7 \, \mathrm{fb}^{-1}$ (2018, 13 TeV)",
+    "combined": r"$\bf{CMS}$ data $138 \, \mathrm{fb}^{-1}$ (13 TeV)",
+    "none": r"$\bf{CMS}$ data (13 TeV)"
+}
+
 channel_dict = {
-    "et": r"$e\tau_{h}$",
-    "mt": r"$\mu\tau_{h}$",
-    "tt": r"$\tau_{h}\tau_{h}$",
-    "em": r"$e\mu$",
+    "et": r"$\mathrm{e}\tau_{\mathrm{h}}$",
+    "mt": r"$\mu\tau_{\mathrm{h}}$",
+    "tt": r"$\tau_{\mathrm{h}}\tau_{\mathrm{h}}$",
+    "em": r"$\mathrm{e}\mu$",
 }
 
 def parse_arguments():
@@ -87,22 +95,28 @@ def make_cmap(colors, position):
 
 
 def plot_1d(categories, results, filename, channel, comparison=None):
-    plt.figure(figsize=(len(categories) * 0.5, 5.0))
+    plt.figure(figsize=(len(categories) * 0.5, 6.0))
     y = results
     x = range(len(y))
     plt.plot(x, y, '+', mew=4, ms=16)
     if comparison is not None:
         plt.plot(x, comparison, '+', mew=4, ms=16)
-    plt.ylim((-0.05, 1.05))
+    # plt.ylim((-0.05, 1.05))
+    plt.ylim((0., 1.0))
     plt.xlim((-0.5, len(x) - 0.5))
-    plt.xticks(x, categories, rotation='vertical')
-    plt.axhline(y=0.05, linewidth=3, color='r')
+    # plt.xticks(x, categories, rotation='vertical')
+    plt.xticks(x, categories, rotation=75, fontsize=14)
+    plt.axhline(y=0.05, linewidth=2, color='r', ls=":")
     for i, res in enumerate(y):
         if res < 0.05:
             plt.text(i, 0.9, "{:.3f}".format(res), rotation='vertical',
                      horizontalalignment="center", verticalalignment="center")
-    plt.ylabel('Saturated goodness of fit p-value', labelpad=20)
+    plt.ylabel('Saturated GoF p-value', labelpad=20)
     ax = plt.gca()
+    ax.xaxis.set_tick_params(which="minor",bottom=False,top=False)
+    plt.text(1., 1.02, lumi_dict["none"],
+            transform=ax.transAxes, horizontalalignment="right",
+            fontsize=12)
     ax.xaxis.grid()
     plt.savefig(filename+".png" if comparison is None else filename+"-comparison.png", bbox_inches="tight")
     plt.savefig(filename+".pdf" if comparison is None else filename+"-comparison.pdf", bbox_inches="tight")
@@ -157,6 +171,7 @@ def get_gof_result(path, era, channel, category=None, forComp=False):
 
 
 def main(args):
+    plt.style.use("modtdr")
     if not os.path.exists(args.path):
         logger.fatal("Path %s does not exist.")
         raise Exception
