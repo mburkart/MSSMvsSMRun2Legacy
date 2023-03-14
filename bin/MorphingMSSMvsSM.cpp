@@ -719,6 +719,9 @@ int main(int argc, char **argv) {
       bkg_procs["em"] = JoinStr({bkg_procs["em"],bkgs_HWW});
     }
   }
+  else if (analysis == "bsm-model-indep" && hSM_treatment == "no-hSM-in-bg") {
+      bkg_procs["em"] = JoinStr({bkg_procs["em"], bkgs_HWW});
+  }
 
   // Define MSSM model-dependent mass parameters mA, mH, mh
   RooRealVar mA("mA", "mA", 125., 60., 4000.);
