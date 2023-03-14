@@ -9,7 +9,7 @@ import ROOT
 import argparse
 import copy
 import yaml
-import distutils.util
+# import distutils.util
 import logging
 logger = logging.getLogger("")
 
@@ -60,11 +60,11 @@ def parse_arguments():
         "--embedding",
         action="store_true",
         help="Fake factor estimation method used")
-    parser.add_argument(
-        "--background-only",
-        type=lambda x:bool(distutils.util.strtobool(x)),
-        default=False,
-        help="Plot only the background categories")
+    # parser.add_argument(
+    #     "--background-only",
+    #     type=lambda x:bool(distutils.util.strtobool(x)),
+    #     default=False,
+    #     help="Plot only the background categories")
     parser.add_argument(
         "--chi2test",
         action="store_true",
@@ -130,7 +130,7 @@ def get_histogram(rootfile, era, channel, category, process):
         if channel == "tt" and process == "jetFakes":
             hist = rootfile.get(era, channel, category, process).Clone()
             hist.Add(rootfile.get(era, channel, category, "wFakes"))
-        elif channel == "mt" and process == "EWK":
+        elif (channel == "mt" or channel == "et") and process == "EWK":
             hist = rootfile.get(era, channel, category, "VVL").Clone()
             hist.Add(rootfile.get(era, channel, category, "ggH125"))
             hist.Add(rootfile.get(era, channel, category, "qqH125"))
@@ -149,7 +149,7 @@ def main(args):
     print(args)
     if args.gof_variable != None:
         channel_categories = {
-            "et": ["300"],
+            "et": ["301", "302"],
             "mt": ["301", "302"],
             "tt": ["300"],
             "em": ["301", "302"],
@@ -157,7 +157,7 @@ def main(args):
         if args.era == "combined":
             if "prefit" in args.input:
                 channel_categories = {
-                    "et": ["300"],
+                    "et": ["300", "301", "302"],
                     "mt": ["300", "301", "302"],
                     "tt": ["300"],
                     "em": ["300", "301", "302"],
@@ -165,9 +165,11 @@ def main(args):
             else:
                 if "301" in args.input:
                     channel_categories["mt"] = ["301"]
+                    channel_categories["et"] = ["301"]
                     channel_categories["em"] = ["301"]
                 elif "302" in args.input:
                     channel_categories["mt"] = ["302"]
+                    channel_categories["et"] = ["302"]
                     channel_categories["em"] = ["302"]
                 else:
                     channel_categories = {
@@ -191,7 +193,7 @@ def main(args):
     channel_dict = {
         "ee": "ee",
         "em": "e#mu",
-        "et": "e#tau_{h}",
+        "et": "#font[42]{e#tau_{h}}",
         "mm": "#mu#mu",
         "mt": "#mu#tau_{h}",
         "tt": "#tau_{h}#tau_{h}"
@@ -349,11 +351,22 @@ def main(args):
                         split_dict[channel],
                         max(1.40 * plot.subplot(0).get_hist("data_obs").GetMaximum(),
                             split_dict[channel] * 2))
-            elif channel in ["et", "mt"]:
+            elif channel in ["mt"]:
                 if category in ["300", "301"]:
                     plot.subplot(0).setYlims(
                         split_dict[channel],
                         max(1.25 * plot.subplot(0).get_hist("data_obs").GetMaximum(),
+                            split_dict[channel] * 2))
+                elif category in ["302"]:
+                    plot.subplot(0).setYlims(
+                        split_dict[channel],
+                        max(2.00 * plot.subplot(0).get_hist("data_obs").GetMaximum(),
+                            split_dict[channel] * 2))
+            elif channel in ["et"]:
+                if category in ["300", "301"]:
+                    plot.subplot(0).setYlims(
+                        split_dict[channel],
+                        max(1.5 * plot.subplot(0).get_hist("data_obs").GetMaximum(),
                             split_dict[channel] * 2))
                 elif category in ["302"]:
                     plot.subplot(0).setYlims(
@@ -441,6 +454,12 @@ def main(args):
             elif channel == "em" and category in ["302"]:
                 plot.add_legend(width=0.25, height=0.35)
                 plot.legend(0).setNColumns(1)
+            elif channel == "mt" or channel == "et":
+                plot.add_legend(width=0.28, height=0.40)
+                plot.legend(0).setNColumns(1)
+            elif channel == "em":
+                plot.add_legend(width=0.28, height=0.40)
+                plot.legend(0).setNColumns(1)
             else:
                 plot.add_legend(width=0.25, height=0.35)
                 plot.legend(0).setNColumns(1)
@@ -454,7 +473,7 @@ def main(args):
             plot.legend(0).add_entry(0, "total_bkg", "Bkg. unc.", 'f')
             # plot.legend(0).add_entry(0, "total_bkg", "Background uncertainty", 'f')
 
-            plot.legend(0).scaleTextSize(1.175)
+            plot.legend(0).scaleTextSize(1.35)
             plot.legend(0).Draw()
 
             if channel == "em":
@@ -476,7 +495,7 @@ def main(args):
                     if category in ["301"]:
                         label2.DrawLatex(-22.5, 105000, "Low-D_{#zeta}")
                         label2.DrawLatex(10, 105000, "Medium-D_{#zeta}")
-                        plot.DrawText(0.75, 0.5, "High-D_{#zeta}", textsize=0.030)
+                        plot.DrawText(0.75, 0.425, "High-D_{#zeta}", textsize=0.030)
                     else:
                         label2.DrawLatex(-22.5, 125000, "Low-D_{#zeta}")
                         label2.DrawLatex(10, 125000, "Medium-D_{#zeta}")
@@ -491,7 +510,7 @@ def main(args):
                     plot.DrawText(0.525, 0.8, "Medium-D_{#zeta}", textsize=0.025)
                     plot.DrawText(0.75, 0.45, "High-D_{#zeta}", textsize=0.025)
                     plot.DrawText(0.305, 0.8, "t#bar{t} CR", textsize=0.025)
-            elif channel in ["et", "mt"]:
+            elif channel in ["mt"]:
                 if category in ["300", "301"]:
                     _ymax = max(0.8 * plot.subplot(0).get_hist("data_obs").GetMaximum(), split_dict[channel] * 2)
                     plot.add_line(xmin=40, xmax=40, ymin=0, ymax=_ymax, linestyle=7, color=ROOT.kBlack)
@@ -499,6 +518,22 @@ def main(args):
                     plot.add_line(xmin=70, xmax=70, ymin=0, ymax=_ymax, linestyle=7, color=ROOT.kBlack)
                     plot.DrawText(0.24, 0.68, "Tight-m_{T}", textsize=0.030)
                     plot.DrawText(0.40, 0.55, "Loose-m_{T}", textsize=0.030)
+                elif category in ["302"]:
+                    _ymax = max(1.3 * plot.subplot(0).get_hist("data_obs").GetMaximum(), split_dict[channel] * 2)
+                    plot.add_line(xmin=40, xmax=40, ymin=0, ymax=_ymax, linestyle=7, color=ROOT.kBlack)
+                    _ymax = max(1.3 * plot.subplot(0).get_hist("data_obs").GetMaximum(), split_dict[channel] * 2)
+                    plot.add_line(xmin=70, xmax=70, ymin=0, ymax=_ymax, linestyle=7, color=ROOT.kBlack)
+                    plot.DrawText(0.18, 0.67, "Tight-m_{T}", textsize=0.030)
+                    plot.DrawText(0.40, 0.67, "Loose-m_{T}", textsize=0.030)
+            elif channel in ["et"]:
+                ROOT.TGaxis.SetMaxDigits(4)
+                if category in ["300", "301"]:
+                    _ymax = max(1.0 * plot.subplot(0).get_hist("data_obs").GetMaximum(), split_dict[channel] * 2)
+                    plot.add_line(xmin=40, xmax=40, ymin=0, ymax=_ymax, linestyle=7, color=ROOT.kBlack)
+                    _ymax = max(0.7 * plot.subplot(0).get_hist("data_obs").GetMaximum(), split_dict[channel] * 2)
+                    plot.add_line(xmin=70, xmax=70, ymin=0, ymax=_ymax, linestyle=7, color=ROOT.kBlack)
+                    plot.DrawText(0.22, 0.72, "Tight-m_{T}", textsize=0.030)
+                    plot.DrawText(0.40, 0.60, "Loose-m_{T}", textsize=0.030)
                 elif category in ["302"]:
                     _ymax = max(1.3 * plot.subplot(0).get_hist("data_obs").GetMaximum(), split_dict[channel] * 2)
                     plot.add_line(xmin=40, xmax=40, ymin=0, ymax=_ymax, linestyle=7, color=ROOT.kBlack)
@@ -531,7 +566,7 @@ def main(args):
             # plot.legend(1).Draw()
 
             # draw additional labels
-            plot.DrawCMS(cms_sub="")
+            plot.DrawCMSPrivate()
             if "2016" in args.era:
                 plot.DrawLumi("36.3 fb^{-1} (2016, 13 TeV)")
             elif "2017" in args.era:
