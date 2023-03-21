@@ -58,7 +58,7 @@ scale_qqh_by_hand=0
 if [[ $MODEL == "mh125" ]]; then
     wsoutput="ws_mh125.root"
     modelfile="13,Run2017,mh125_13.root"
-    scenario_label="#font[42]{M_{h}^{125} scenario (h,H,A#rightarrow#tau#tau)}"
+    scenario_label="#font[42]{M_{h}^{125}-Szenario (h,H,A#rightarrow#tau#tau)}"
     sub_analysis="sm-like-light"
     sm_like_mass="m_h"
     x_title='m_{A} (GeV)'
@@ -108,7 +108,7 @@ elif [[ $MODEL == "mHH125" ]]; then
 elif [[ $MODEL == "mh1125_CPV" ]]; then
     wsoutput="ws_mh1125_cpv.root"
     modelfile="13,Run2017,mh1125_CPV_13.root"
-    scenario_label="#font[42]{M_{h_{1}}^{125}(CPV) scenario (^{}h_{1},^{}h_{2},^{}h_{3}#rightarrow#tau#tau)}"
+    scenario_label="#font[42]{M_{h_{#lower[-0.2]{1}}}^{125}(CPV) scenario (^{}h_{1},^{}h_{2},^{}h_{3}#rightarrow#tau#tau)}"
     sub_analysis="cpv"
     sm_like_mass="m_H1"
     x_title='m_{H^{#plus}} (GeV)'
@@ -119,7 +119,7 @@ elif [[ $MODEL == "mh1125_CPV" ]]; then
 elif [[ $MODEL == "mh125_muneg_1" ]]; then
     wsoutput="mh125_muneg_1.root"
     modelfile="13,Run2017,mh125_muneg_1_13.root"
-    scenario_label="#font[42]{M_{h}^{125 ^{}#mu_{1}#minus} scenario (h,H,A#rightarrow#tau#tau)}"
+    scenario_label="#font[42]{M_{h}^{#lower[0.5]{125} ^{}#lower[0.5]{#mu}_{#lower[-0.5]{1}}#lower[0.5]{#minus}} scenario (h,H,A#rightarrow#tau#tau)}"
     sub_analysis="sm-like-light"
     sm_like_mass="m_h"
     x_title='m_{A} (GeV)'
@@ -129,7 +129,7 @@ elif [[ $MODEL == "mh125_muneg_1" ]]; then
 elif [[ $MODEL == "mh125_muneg_2" ]]; then
     wsoutput="mh125_muneg_2.root"
     modelfile="13,Run2017,mh125_muneg_2_13.root"
-    scenario_label="#font[42]{M_{h}^{125 ^{}#mu_{2}#minus} scenario (h,H,A#rightarrow#tau#tau)}"
+    scenario_label="#font[42]{M_{h}^{#lower[0.5]{125} ^{}#lower[0.5]{#mu}_{#lower[-0.5]{#kern[0.2]{2}}}#lower[0.5]{#minus}} scenario (h,H,A#rightarrow#tau#tau)}"
     sub_analysis="sm-like-light"
     sm_like_mass="m_h"
     x_title='m_{A} (GeV)'
@@ -139,7 +139,7 @@ elif [[ $MODEL == "mh125_muneg_2" ]]; then
 elif [[ $MODEL == "mh125_muneg_3" ]]; then
     wsoutput="mh125_muneg_3.root"
     modelfile="13,Run2017,mh125_muneg_3_13.root"
-    scenario_label="#font[42]{M_{h}^{125 ^{}#mu_{3}#minus} scenario (h,H,A#rightarrow#tau#tau)}"
+    scenario_label="#font[42]{M_{h}^{#lower[0.5]{125} ^{}#lower[0.5]{#mu}_{#lower[-0.5]{#kern[0.2]{3}}}#lower[0.5]{#minus}} scenario (h,H,A#rightarrow#tau#tau)}"
     sub_analysis="sm-like-light"
     sm_like_mass="m_h"
     x_title='m_{A} (GeV)'
@@ -150,7 +150,7 @@ elif [[ $MODEL == "mh125_muneg_3" ]]; then
 elif [[ $MODEL == "mh125EFT" ]]; then
     wsoutput="mh125EFT.root"
     modelfile="13,Run2017,mh125EFT_13.root"
-    scenario_label="#font[42]{M_{h,#kern[0.16667]{E}FT}^{125} scenario (h,H,A#rightarrow#tau#tau)}"
+    scenario_label="#font[42]{M_{h,#kern[0.16667]{E}FT}^{125}-Szenario (h,H,A#rightarrow#tau#tau)}"
     sub_analysis="sm-like-light"
     sm_like_mass="m_h"
     x_title='m_{A} (GeV)'
@@ -214,7 +214,7 @@ if [[ $MODE == "initial" ]]; then
         morph_parallel.py --output ${defaultdir}/datacards \
             --analysis ${analysis} \
             --sub-analysis ${sub_analysis} \
-            --hSM-treatment $HSMTREATMENT  \
+            --hSM-treatment $HSMTREATMENT \
             --categorization ${categorization} \
             --sm-like-hists ${sm_like_hists} \
             --sm-gg-fractions ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/data/higgs_pt_reweighting_fullRun2.root \
@@ -351,9 +351,11 @@ elif [[ $MODE == "setup" ]]; then
     # job setup creation
     ############
     cd ${defaultdir}/limits_${MODEL}/condor
+    asym_grid=${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_asymptotic_grid_${MODEL}.json
+
     if [[ $HSMTREATMENT == "hSM-in-bg" ]]; then
         combineTool.py -M AsymptoticGrid \
-        ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_asymptotic_grid_${MODEL}.json \
+        ${asym_grid} \
         -d ${datacarddir}/combined/cmb/${wsoutput} \
         --job-mode 'condor' \
         --task-name $taskname \
@@ -367,7 +369,7 @@ elif [[ $MODE == "setup" ]]; then
         --cminDefaultMinimizerTolerance 0.01 2>&1 | tee -a ${defaultdir}/logs/job_setup_${MODEL}.txt
     elif [[ $HSMTREATMENT == "no-hSM-in-bg" ]]; then
         combineTool.py -M AsymptoticGrid \
-        ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_asymptotic_grid_${MODEL}.json \
+        ${asym_grid} \
         -d ${datacarddir}/combined/cmb/${wsoutput} \
         --job-mode 'condor' \
         --task-name $taskname \
@@ -501,15 +503,17 @@ elif [[ $MODE == "copy-results-gc" ]]; then
     ############
     # job submission
     ############
-    rsync -avhP /storage/gridka-nrg/${GRIDUSER}/gc_storage/combine/${taskname}/output/ ${defaultdir}/limits_${MODEL}/condor
+    rsync -avhP /storage/gridka-nrg/${GRIDUSER}/gc_storage/combine/${taskname}_2022_02_28/output/ ${defaultdir}/limits_${MODEL}/condor
 
 elif [[ $MODE == "collect" ]]; then
     ############
     # job collection
     ############
+    asym_grid=${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_asymptotic_grid_${MODEL}.json
+
     cd ${defaultdir}/limits_${MODEL}/condor
     combineTool.py -M AsymptoticGrid \
-    ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_asymptotic_grid_${MODEL}.json \
+    ${asym_grid} \
     -d ${datacarddir}/combined/cmb/${wsoutput} \
     --job-mode 'condor' \
     --task-name $taskname2 \
@@ -542,6 +546,10 @@ elif [[ $MODE == "collect" ]]; then
     fi
     modelname=${MODEL}_13.root
     [[ $OLDFILES == 1 ]] && modelname="${MODEL}_13_old.root"
+    range="--x-range 100,2600"
+    [[ $MODEL == "hMSSM" || $MODEL == "mh1125_CPV" || $MODEL == "mh125_align" || $MODEL == "mHH125" ]] && range=""
+    [[ $MODEL == "mh125_muneg_2" ]] && range="--x-range 100,2300"
+    [[ $MODEL == "mh125_muneg_3" ]] && range="--x-range 100,2000"
     for label in "Preliminary" "" "Supplementary"; do
         ${CMSSW_BASE}/src/CombineHarvester/CombineTools/scripts/plotLimitGrid.py asymptotic_grid.root \
         --scenario-label="${scenario_label}" \
@@ -553,9 +561,94 @@ elif [[ $MODE == "collect" ]]; then
         --mass_histogram ${sm_like_mass} \
         --mass_histogram_title ${mass_histogram_title} \
         --model_file=${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/data/${modelname} \
-        --x-range 100,2600 \
+        $range \
         --debug-output limit_contours_${TAG}_${MODEL}_${label}.root \
         --y-title "tan#kern[0.16667]{#beta}" \
         --x-title "${x_title}" 2>&1 | tee -a ${defaultdir}/logs/plot_grid_${MODEL}.txt
     done
+
+elif [[ $MODE == "combined-shapes-initial" ]]; then
+    ############
+    # morphing
+    ############
+    if [[ $ANALYSISTYPE == "classic" ]]; then
+        morph_parallel.py --output ${defaultdir}/datacards_combined-shapes \
+            --analysis ${analysis} \
+            --sub-analysis ${sub_analysis} \
+            --hSM-treatment $HSMTREATMENT  \
+            --categorization ${categorization} \
+            --sm-like-hists ${sm_like_hists} \
+            --sm-gg-fractions ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/data/higgs_pt_reweighting_fullRun2.root \
+            --additional-arguments "--auto_rebin=1 --real_data=1 --manual_rebin=1 --split_sm_signal_cat=1 --enable_bsm_lowmass=1 --cbyear_plot=True" \
+            --eras 2016,2017,2018 \
+            --category-list ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_classic_categories.txt \
+            --variable mt_tot_puppi \
+            --parallel 10 2>&1 | tee -a ${defaultdir}/logs/morph_mssm_combined-shapes_log.txt
+    elif [[ $ANALYSISTYPE == "classic_lowmass" ]]; then
+        echo "[WARNING] Datacard creation for combined shapes not implemented for analysis type $ANALYSISTYPE. Aborting..."
+        exit 42
+    elif [[ $ANALYSISTYPE == "with-sm-ml" || $ANALYSISTYPE == "sm-ml-only" ]]; then
+        # morph_parallel.py --output ${defaultdir}/datacards_combined-shapes \
+        #     --analysis ${analysis} \
+        #     --sub-analysis ${sub_analysis} \
+        #     --hSM-treatment $HSMTREATMENT  \
+        #     --categorization ${categorization} \
+        #     --sm-like-hists ${sm_like_hists} \
+        #     --sm-gg-fractions ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/data/higgs_pt_reweighting_fullRun2.root \
+        #     --additional-arguments "--auto_rebin=1 --real_data=1 --manual_rebin=1 --split_sm_signal_cat=1 --enable_bsm_lowmass=1 --cbyear_plot=True" \
+        #     --eras 2016,2017,2018 \
+        #     --category-list ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/sm_neuralnet_categories.txt \
+        #     --variable nnscore \
+        #     --sm \
+        #     --parallel 10 |& tee ${defaultdir}/logs/morph_sm_combined-shapes_log.txt
+
+        if [[ $ANALYSISTYPE == "with-sm-ml" ]]; then
+            morph_parallel.py --output ${defaultdir}/datacards_combined-shapes \
+                --analysis ${analysis} \
+                --sub-analysis ${sub_analysis} \
+                --hSM-treatment $HSMTREATMENT  \
+                --categorization ${categorization} \
+                --sm-like-hists ${sm_like_hists} \
+                --sm-gg-fractions ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/data/higgs_pt_reweighting_fullRun2.root \
+                --additional-arguments "--auto_rebin=1 --real_data=1 --manual_rebin=1 --split_sm_signal_cat=1 --enable_bsm_lowmass=1 --cbyear_plot=True" \
+                --eras 2016,2017,2018 \
+                --category-list ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_new_categories.txt \
+                --variable mt_tot_puppi \
+                --parallel 1 |& tee ${defaultdir}/logs/morph_mssm_combined-shapes_log.txt
+        fi
+    fi
+
+elif [[ $MODE == "combined-shapes-ws" ]]; then
+    ############
+    # workspace creation
+    ############
+    datacarddir=${defaultdir}/datacards_combined-shapes_${analysis}
+    if [[ $OLDFILES == 0 ]]; then
+        combineTool.py -M T2W -o ${wsoutput} \
+        -P CombineHarvester.MSSMvsSMRun2Legacy.MSSMvsSM:MSSMvsSM \
+        --PO filePrefix=${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/data/ \
+        --PO replace-with-SM125=${replace_with_sm125} \
+        --PO hSM-treatment=$HSMTREATMENT \
+        --PO modelFile=${modelfile} \
+        --PO minTemplateMass=60 \
+        --PO maxTemplateMass=3500 \
+        --PO MSSM-NLO-Workspace=${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/data/higgs_pt_reweighting_fullRun2.root \
+        --PO sm-predictions=${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/sm_predictions_13TeV.json \
+        --PO qqh-pred-from-scaling=${scale_qqh_by_hand} \
+        -i ${datacarddir}/htt_*/ \
+        --parallel 8 |& tee ${defaultdir}/logs/workspace_combined-shapes_${MODEL}.txt
+    else
+        combineTool.py -M T2W -o ${wsoutput} \
+        -P CombineHarvester.MSSMvsSMRun2Legacy.MSSMvsSM_oldModels:MSSMvsSM_oldModels \
+        --PO filePrefix=${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/data/ \
+        --PO replace-with-SM125=${replace_with_sm125} \
+        --PO hSM-treatment=$HSMTREATMENT \
+        --PO modelFile=${modelfile} \
+        --PO minTemplateMass=60 \
+        --PO maxTemplateMass=3500 \
+        --PO MSSM-NLO-Workspace=${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/data/higgs_pt_reweighting_fullRun2.root \
+        --PO sm-predictions=${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/sm_predictions_13TeV.json \
+        -i ${datacarddir}/201?/htt_*/ \
+        --parallel 8 |& tee -a ${defaultdir}/logs/workspace_combined-shapes_${MODEL}.txt
+    fi
 fi
