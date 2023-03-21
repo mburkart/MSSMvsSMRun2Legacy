@@ -169,6 +169,7 @@ def main(args):
         "et": "e#tau_{h}",
         "mm": "#mu#mu",
         "mt": "#mu#tau_{h}",
+        "lt": "#mu#tau_{h}+e#tau_{h}",
         "tt": "#tau_{h}#tau_{h}"
     }
     if args.control_variable != None:
@@ -182,10 +183,10 @@ def main(args):
                 "16": "misc",
                 "20": "Genuine #tau",
                 "21": "Jet #rightarrow #tau_{h}",
-                "32": "No B-tag Tight-m_{T}",
-                "33": "No B-tag Loose-m_{T}",
-                "35": "B-tag Tight-m_{T}",
-                "36": "B-tag Loose-m_{T}",
+                "32": "No b-tag Tight-m_{T}",
+                "33": "No b-tag Loose-m_{T}",
+                "35": "b-tag Tight-m_{T}",
+                "36": "b-tag Loose-m_{T}",
                 },
             "mt": {
                 "1": "2D ggH/qqH category",
@@ -194,18 +195,30 @@ def main(args):
                 "16": "misc",
                 "20": "Genuine #tau",
                 "21": "Jet #rightarrow #tau_{h}",
-                "32": "No B-tag Tight-m_{T}",
-                "33": "No B-tag Loose-m_{T}",
-                "35": "B-tag Tight-m_{T}",
-                "36": "B-tag Loose-m_{T}",
+                "32": "No b-tag Tight-m_{T}",
+                "33": "No b-tag Loose-m_{T}",
+                "35": "b-tag Tight-m_{T}",
+                "36": "b-tag Loose-m_{T}",
+                },
+            "lt": {
+                "1": "2D ggH/qqH category",
+                "13": "tt",
+                "15": "zll",
+                "16": "misc",
+                "20": "Genuine #tau",
+                "21": "Jet #rightarrow #tau_{h}",
+                "32": "No b-tag Tight-m_{T}",
+                "33": "No b-tag Loose-m_{T}",
+                "35": "b-tag Tight-m_{T}",
+                "36": "b-tag Loose-m_{T}",
                 },
             "tt": {
                 "1": "2D ggH/qqH category",
                 "16": "misc",
                 "20": "Genuine #tau",
                 "21": "Jet #rightarrow #tau_{h}",
-                "32": "No B-tag",
-                "35": "B-tag",
+                "32": "No b-tag",
+                "35": "b-tag",
                 },
             "em": {
                 "1": "2D ggH/qqH category",
@@ -215,12 +228,12 @@ def main(args):
                 "16": "misc",
                 "19": "diboson",
                 "20": "Genuine #tau",
-                "32": "No B-tag, high d_{#zeta}",
-                "33": "No B-tag, medium d_{#zeta}",
-                "34": "No B-tag, low d_{#zeta}",
-                "35": "B-tag, high d_{#zeta}",
-                "36": "B-tag, medium d_{#zeta}",
-                "37": "B-tag, low d_{#zeta}",
+                "32": "No b-tag, high D_{#zeta}",
+                "33": "No b-tag, medium D_{#zeta}",
+                "34": "No b-tag, low D_{#zeta}",
+                "35": "b-tag, high D_{#zeta}",
+                "36": "b-tag, medium D_{#zeta}",
+                "37": "b-tag, low D_{#zeta}",
                 },
 
         }
@@ -314,16 +327,10 @@ def main(args):
                         plot.subplot(i).add_hist(
                             ggH_hist, "ggH")
                         plot.subplot(i).add_hist(
-                            ggH_hist, "ggH_top")
-                        plot.subplot(i).add_hist(
                             rebin_hist_for_logX(rootfile.get(era, channel, category, "bbh"), xlow=30.), "bbH")
-                        plot.subplot(i).add_hist(
-                            rebin_hist_for_logX(rootfile.get(era, channel, category, "bbh"), xlow=30.), "bbH_top")
                     else:
                         plot.subplot(i).add_hist(
                             rebin_hist_for_logX(rootfile.get(era, channel, category, "TotalSig"), xlow=30.), "mssm_sig")
-                        plot.subplot(i).add_hist(
-                            rebin_hist_for_logX(rootfile.get(era, channel, category, "TotalSig"), xlow=30.), "mssm_sig_top")
 
             # get observed data and total background histograms
             plot.add_hist(
@@ -337,16 +344,10 @@ def main(args):
                     plot.subplot(0 if args.linear else 1).setGraphStyle(
                         "ggH", "hist", linecolor=styles.color_dict["ggH"], linewidth=3)
                     plot.subplot(0 if args.linear else 1).setGraphStyle(
-                        "ggH_top", "hist", linecolor=0)
-                    plot.subplot(0 if args.linear else 1).setGraphStyle(
                         "bbH", "hist", linecolor=styles.color_dict["bbH"], linewidth=3)
-                    plot.subplot(0 if args.linear else 1).setGraphStyle(
-                        "bbH_top", "hist", linecolor=0)
             else:
                 plot.subplot(0 if args.linear else 1).setGraphStyle(
                     "mssm_sig", "hist", linecolor=styles.color_dict["bbH"], linewidth=3)
-                plot.subplot(0 if args.linear else 1).setGraphStyle(
-                    "mssm_sig_top", "hist", linecolor=0)
             plot.setGraphStyle(
                 "total_bkg",
                 "e2",
@@ -362,30 +363,20 @@ def main(args):
                     bkg_ggH.Add(plot.subplot(2).get_hist("total_bkg"))
                     bkg_bbH.Add(plot.subplot(2).get_hist("total_bkg"))
                     plot.subplot(2).add_hist(bkg_ggH, "bkg_ggH")
-                    plot.subplot(2).add_hist(bkg_ggH, "bkg_ggH_top")
                     plot.subplot(2).add_hist(bkg_bbH, "bkg_bbH")
-                    plot.subplot(2).add_hist(bkg_bbH, "bkg_bbH_top")
                     plot.subplot(2).setGraphStyle(
                         "bkg_ggH",
                         "hist",
                         linecolor=styles.color_dict["ggH"],
                         linewidth=3)
                     plot.subplot(2).setGraphStyle(
-                        "bkg_ggH_top",
-                        "hist",
-                        linecolor=0)
-                    plot.subplot(2).setGraphStyle(
                         "bkg_bbH",
                         "hist",
                         linecolor=styles.color_dict["bbH"],
                         linewidth=3)
-                    plot.subplot(2).setGraphStyle(
-                        "bkg_bbH_top",
-                        "hist",
-                        linecolor=0)
                     plot.subplot(2).normalize([
-                        "total_bkg", "bkg_ggH", "bkg_ggH_top", "bkg_bbH",
-                        "bkg_bbH_top", "data_obs"
+                        "total_bkg", "bkg_ggH", "bkg_bbH",
+                        "data_obs"
                     ], "total_bkg")
                 else:
                     plot.subplot(2).normalize([
@@ -440,14 +431,14 @@ def main(args):
             else:
                 plot.subplot(0).setYlims(
                     split_dict[channel],
-                    max(1.8 * plot.subplot(0).get_hist("total_bkg").GetMaximum(),
+                    max(1.4 * plot.subplot(0).get_hist("total_bkg").GetMaximum(),
                         split_dict[channel] * 2))
 
-            plot.subplot(2).setYlims(0.65, 1.8)
+            plot.subplot(2).setYlims(0.8, 1.2)
 
             if args.linear != True:
                 # plot.subplot(1).setYlims(1.e-4, split_dict[channel])
-                plot.subplot(1).setYlims(min(1.e-3, plot.subplot(1).get_hist("data_obs").GetMinimum(), plot.subplot(1).get_hist("total_bkg").GetMinimum()), split_dict[channel])
+                plot.subplot(1).setYlims(min(1.e-3, plot.subplot(1).get_hist("data_obs").GetMinimum()/10., plot.subplot(1).get_hist("total_bkg").GetMinimum()/10.), split_dict[channel])
                 plot.subplot(1).setLogY()
                 if int(category) > 30 or int(category) == 2:
                     plot.subplot(1).setLogX()
@@ -492,13 +483,13 @@ def main(args):
 
             # draw subplots. Argument contains names of objects to be drawn in corresponding order.
             # procs_to_draw = ["stack", "total_bkg", "ggH", "ggH_top", "bbH", "bbH_top", "data_obs"] if args.linear else ["stack", "total_bkg", "data_obs"]
-            if category == "2" and args.control_region:
+            if category == "2":
                 procs_to_draw = ["stack", "total_bkg", "data_obs"] if args.linear else ["stack", "total_bkg", "data_obs"]
             else:
                 if args.model_independent:
-                    procs_to_draw = ["stack", "total_bkg", "ggH", "ggH_top", "bbH", "bbH_top", "data_obs"] if args.linear else ["stack", "total_bkg", "data_obs"]
+                    procs_to_draw = ["stack", "total_bkg", "ggH", "bbH", "data_obs"] if args.linear else ["stack", "total_bkg", "data_obs"]
                 else:
-                    procs_to_draw = ["stack", "total_bkg", "mssm_sig", "mssm_sig_top", "data_obs"] if args.linear else ["stack", "total_bkg", "data_obs"]
+                    procs_to_draw = ["stack", "total_bkg", "mssm_sig", "data_obs"] if args.linear else ["stack", "total_bkg", "data_obs"]
                 if args.blinded:
                     procs_to_draw.remove("data_obs")
             plot.subplot(0).Draw(procs_to_draw)
@@ -508,20 +499,20 @@ def main(args):
                 #     "ggH_top", "bbH_top",
                 #     "data_obs"
                 # ])
-                if category == "2" and args.control_region:
+                if category == "2":
                     plot.subplot(1).Draw([
                         "stack", "total_bkg",
                         "data_obs"
                     ])
                 else:
                     if args.model_independent:
-                        procs_to_draw = ["stack", "total_bkg", "ggH", "bbH", "ggH_top", "bbH_top", "data_obs"]
+                        procs_to_draw = ["stack", "total_bkg", "ggH", "bbH", "data_obs"]
                     else:
-                        procs_to_draw = ["stack", "total_bkg", "mssm_sig", "mssm_sig_top", "data_obs"]
+                        procs_to_draw = ["stack", "total_bkg", "mssm_sig", "data_obs"]
                     if args.blinded:
                         procs_to_draw.remove("data_obs")
                     plot.subplot(1).Draw(procs_to_draw)
-            if category == "2" and args.control_region:
+            if category == "2":
                 plot.subplot(2).Draw([
                     "total_bkg",
                     "data_obs"
@@ -529,7 +520,7 @@ def main(args):
             else:
                 if args.model_independent:
                     if int(category) > 30:
-                        procs_to_draw = ["total_bkg", "bkg_ggH", "bkg_bbH", "bkg_ggH_top", "bkg_bbH_top", "data_obs"]
+                        procs_to_draw = ["total_bkg", "bkg_ggH", "bkg_bbH", "data_obs"]
                     else:
                         procs_to_draw = ["total_bkg", "data_obs"]
                 else:
@@ -539,13 +530,16 @@ def main(args):
                 plot.subplot(2).Draw(procs_to_draw)
 
             # create legends
-            suffix = ["", "_top"]
-            for i in range(2):
+            # suffix = ["", "_top"]
+            suffix = [""]
+            # for i in range(2):
+            for i in range(1):
 
                 if int(category) < 30 and int(category) > 2:
                     plot.add_legend(width=0.38, height=0.30)
                 else:
-                    plot.add_legend(width=0.40, height=0.30)
+                    # plot.add_legend(width=0.60, height=0.20, pos=1)
+                    plot.add_legend(width=0.40, height=0.30, pos=3)
                 # plot.add_legend(width=0.6, height=0.15)
                 for process in legend_bkg_processes:
                     plot.legend(i).add_entry(
@@ -557,16 +551,19 @@ def main(args):
                 else:
                     if args.model_independent:
                         if int(category) > 30:
-                            plot.legend(i).add_entry(0 if args.linear else 1, "ggH%s" % suffix[i], "#splitline{ggH @ %s pb}{(m_{H} = %s GeV)}" % (args.cross_section_ggh, args.mass), 'l')
-                            plot.legend(i).add_entry(0 if args.linear else 1, "bbH%s" % suffix[i], "#splitline{bbH @ %s pb}{(m_{H} = %s GeV)}" % (args.cross_section_bbh, args.mass), 'l')
+                            mass_str = "%s GeV" % args.mass if int(args.mass) < 1000 else "{:.1f} TeV".format(int(args.mass) / 1000)
+                            ggH_xs_str = "%s pb" % args.cross_section_ggh if float(args.cross_section_ggh) > 1e-2 else "{} fb".format(float(args.cross_section_ggh) * 1000)
+                            bbH_xs_str = "%s pb" % args.cross_section_ggh if float(args.cross_section_ggh) > 1e-2 else "{} fb".format(float(args.cross_section_ggh) * 1000)
+                            plot.legend(i).add_entry(0 if args.linear else 1, "ggH%s" % suffix[i], "#splitline{ggH @ %s}{(m_{H} = %s)}" % (ggH_xs_str, mass_str), 'l')
+                            plot.legend(i).add_entry(0 if args.linear else 1, "bbH%s" % suffix[i], "#splitline{bbH @ %s}{(m_{H} = %s)}" % (bbH_xs_str, mass_str), 'l')
                     else:
                         plot.legend(i).add_entry(0 if args.linear else 1, "mssm_sig%s" % suffix[i], "#splitline{H #rightarrow #tau#tau}{#splitline{(m_{A}= %s GeV,}{ tan #beta = %s)}}" %(args.mass, args.tanbeta), 'l')
                 if not args.blinded:
                     plot.legend(i).add_entry(0, "data_obs", "Data", 'PE')
                 plot.legend(i).setNColumns(2)
             plot.legend(0).Draw()
-            plot.legend(1).setAlpha(0.0)
-            plot.legend(1).Draw()
+            # plot.legend(1).setAlpha(0.0)
+            # plot.legend(1).Draw()
 
             if args.chi2test:
                 import ROOT as r
@@ -581,36 +578,40 @@ def main(args):
                 plot.DrawText(0.7, 0.3,
                               "\chi^{2}/ndf = " + str(round(chi2, 3)))
 
-            for i in range(2):
+            # FIXME: Legend for ratio plot temporarily disabled.
+            for i in range(1):
                 plot.add_legend(
                     reference_subplot=2, pos=1, width=0.5, height=0.06)
                 if not args.blinded:
-                    plot.legend(i + 2).add_entry(0, "data_obs", "Data", 'PE')
+                    plot.legend(i + 1).add_entry(0, "data_obs", "Data", 'PE')
                 if args.control_region and category == "2":
                     pass
                 else:
                     if args.model_independent:
-                        plot.legend(i + 2).add_entry(0 if args.linear else 1, "ggH%s" % suffix[i],
-                                             "ggH+bkg.", 'l')
-                        plot.legend(i + 2).add_entry(0 if args.linear else 1, "bbH%s" % suffix[i],
-                                             "bbH+bkg.", 'l')
+                        if int(category) > 30:
+                            plot.legend(i + 1).add_entry(0 if args.linear else 1, "ggH%s" % suffix[i],
+                                                 "ggH+bkg.", 'l')
+                            plot.legend(i + 1).add_entry(0 if args.linear else 1, "bbH%s" % suffix[i],
+                                                 "bbH+bkg.", 'l')
                     else:
-                        plot.legend(i + 2).add_entry(0 if args.linear else 1, "mssm_sig%s" % suffix[i],
+                        plot.legend(i + 1).add_entry(0 if args.linear else 1, "mssm_sig%s" % suffix[i],
                                                      "H+bkg.", 'l')
-                plot.legend(i + 2).add_entry(0, "total_bkg", "Bkg. unc.", 'f')
-                plot.legend(i + 2).setNColumns(3)
-            plot.legend(2).Draw()
-            plot.legend(3).setAlpha(0.0)
-            plot.legend(3).Draw()
+                plot.legend(i + 1).add_entry(0, "total_bkg", "Bkg. unc.", 'f')
+                plot.legend(i + 1).setNColumns(4)
+            plot.legend(1).Draw()
+            # plot.legend(3).setAlpha(0.0)
+            # plot.legend(3).Draw()
 
             # draw additional labels
-            # plot.DrawCMS()
+            plot.DrawCMS(cms_sub="")
             if "2016" in args.era:
                 plot.DrawLumi("36.3 fb^{-1} (2016, 13 TeV)")
             elif "2017" in args.era:
                 plot.DrawLumi("41.5 fb^{-1} (2017, 13 TeV)")
             elif "2018" in args.era:
                 plot.DrawLumi("59.7 fb^{-1} (2018, 13 TeV)")
+            elif "combined" in args.era:
+                plot.DrawLumi("138 fb^{-1} (13 TeV)")
             else:
                 logger.critical("Era {} is not implemented.".format(args.era))
                 raise Exception
