@@ -184,7 +184,95 @@ case "$MODE" in
             --PO '"map=^.*/ggX_(i|t|b).?$:r_ggX[0,0,200]"' \
             -i ${datacarddir}/combined/cmb \
             -m 95 --parallel 8
-      ;;
+        ;;
+
+    "ws-plot")
+        ###############
+        # Create workspaces for plotting
+        ###############
+        combineTool.py -M T2W -o "ws.root" \
+            -P HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel \
+            --PO '"map=^.*/ggh_(i|t|b).?$:r_ggH[0,0,200]"' \
+            --PO '"map=^.*/bbh$:r_bbH[0,0,200]"' \
+            --PO '"map=^.*/qqX$:r_qqX[0]"' \
+            --PO '"map=^.*/ggX_(i|t|b).?$:r_ggX[0,0,200]"' \
+            --X-allow-no-signal \
+            -i ${datacarddir}/201?/htt_*/ \
+            -m 125 \
+            --parallel 8 | tee -a ${defaultdir}/logs/workspace_plots_independent.txt
+         ;;
+
+    "setup")
+        ##################
+        # setup jobs to derive limits
+        #################
+        cd ${defaultdir}/limits_ind/condor
+        combineTool.py -m "60,80,95,100,120,125,130,140,160,180,200,250" \
+            -M AsymptoticLimits \
+            --rAbsAcc 0 \
+            --rRelAcc 0.0005 \
+            --boundlist ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_boundaries.json \
+            --setParameters r_ggH=0,r_bbH=0,r_qqX=0,r_ggX=0 \
+            --freezeParameters r_qqX,r_ggX \
+            --redefineSignalPOIs r_ggH \
+            -d ${datacarddir}/combined/cmb/ws.root \
+            --there -n ".ggH" \
+            --job-mode condor \
+            --dry-run \
+            --task-name ggH_full_cmb \
+            --X-rtd MINIMIZER_analytic \
+            --cminDefaultMinimizerStrategy 0 \
+            --cminDefaultMinimizerTolerance 0.01 \
+            -v 1 | tee -a ${defaultdir}/logs/job_setup_modelind_ggH.txt 
+
+        combineTool.py -m "60,80,95,100,120,125,130,140,160,180,200,250" \
+            -M AsymptoticLimits \
+            --rAbsAcc 0 \
+            --rRelAcc 0.0005 \
+            --boundlist ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_boundaries.json \
+            --setParameters r_ggH=0,r_bbH=0,r_qqX=0,r_ggX=0 \
+            --freezeParameters r_qqX,r_ggX \
+            --redefineSignalPOIs r_bbH \
+            -d ${datacarddir}/combined/cmb/ws.root \
+            --there -n ".bbH" \
+            --job-mode condor \
+            --dry-run \
+            --task-name bbH_full_cmb \
+            --X-rtd MINIMIZER_analytic \
+            --cminDefaultMinimizerStrategy 0 \
+            --cminDefaultMinimizerTolerance 0.01 \
+            -v 1 | tee -a ${defaultdir}/logs/job_setup_modelind_bbH.txt 
+        ;;
+
+    "submit")
+        ##############
+        # job submission
+        ##############
+        cd ${defaultdir}/limits_ind/condor
+        condor_submit condor_ggH_full_cmb.sub
+        condor_submit condor_bbH_full_cmb.sub
+        ;;
+
+    "collect")
+        for p in gg bb
+        do
+            combineTool.py -M CollectLimits ${datacarddir}/combined/cmb/higgsCombine.${p}H*AsymptoticLimits*.root \
+            --use-dirs \
+            -o ${datacarddir}/combined/cmb/mssm_${p}H.json
+
+            reldefaultdir=$(realpath --relative-to="$PWD" "${defaultdir}")
+            ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/scripts/plotMSSMLimits.py \
+                --title-right "138 fb^{-1} (13 TeV)" \
+                --x-title "m_{#phi} (GeV)" \
+                --process "${p}#phi" \
+                --y-axis-min 0.01 \
+                --y-axis-max 100.0 \
+                --show exp,obs ${datacarddir}/combined/cmb/mssm_${p}H_cmb.json \
+                --output ${reldefaultdir}/limits_ind/mssm_model-independent_${p}H_cmb \
+                --logx \
+                --logy
+        done
+        ;;
 
     "prepare-ggH-bbH-scan")
         [[ ! -d ${defaultdir}/ggH_bbH_scan_ind/condor ]] && mkdir -p ${defaultdir}/ggH_bbH_scan_ind/condor
@@ -296,6 +384,74 @@ case "$MODE" in
             -t -1 --toysFile higgsCombine.2D.ToyDataset.SM1.MultiDimFit.mH125.123456.root \
             --there -n ".2D.SM1.bestfit"
             # --job-mode condor --dry-run --task-name ggH_bbH_likelihood_SM1 --merge 3 \
+        ;;
+
+    "setup-sig")
+        [[ ! -d ${defaultdir}/significance_ind/condor ]] && mkdir -p ${defaultdir}/significance_ind/condor
+        cd ${defaultdir}/significance_ind/condor
+        combineTool.py -M Significance \
+            -m "60,80,95,100,120,125,130,140,160,180,200,250" \
+            --boundlist ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_boundaries.json \
+            --setParameters r_ggH=0,r_bbH=0,r_qqX=0,r_ggX=0 \
+            --freezeParameters r_qqX,r_ggX \
+            --redefineSignalPOIs r_bbH \
+            -d ${datacarddir}/combined/cmb/ws.root \
+            --there -n ".bbH" \
+            --job-mode condor \
+            --dry-run \
+            --task-name bbH_full_cmb_Significance \
+            --X-rtd MINIMIZER_analytic \
+            --cminDefaultMinimizerStrategy 0 \
+            --cminDefaultMinimizerTolerance 0.01 \
+            -v 1 \
+            | tee -a ${defaultdir}/logs/job_setup_sigind_bbh.txt
+
+        combineTool.py -M Significance \
+            -m "60,80,95,100,120,125,130,140,160,180,200,250" \
+            --boundlist ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_boundaries.json \
+            --setParameters r_ggH=0,r_bbH=0,r_qqX=0,r_ggX=0 \
+            --freezeParameters r_qqX,r_ggX \
+            --redefineSignalPOIs r_ggH \
+            -d ${datacarddir}/combined/cmb/ws.root \
+            --there -n ".ggH" \
+            --job-mode condor \
+            --dry-run \
+            --task-name ggH_full_cmb_Significance \
+            --X-rtd MINIMIZER_analytic \
+            --cminDefaultMinimizerStrategy 0 \
+            --cminDefaultMinimizerTolerance 0.01 \
+            -v 1 \
+            |& tee -a ${defaultdir}/logs/job_setup_sigind_ggh.txt
+        ;;
+
+    "submit-sig")
+        cd ${defaultdir}/significance_ind/condor
+        condor_submit condor_ggH_full_cmb_Significance.sub
+        condor_submit condor_bbH_full_cmb_Significance.sub
+        ;;
+
+    "collect-sig")
+        for p in gg bb; do 
+            combineTool.py -M CollectLimits ${datacarddir}/combined/cmb/higgsCombine.${p}H.Significance.mH*.root \
+                --use-dirs \
+                -o ${datacarddir}/combined/cmb/mssm_significance_${p}H.json
+        done
+        ;;
+
+    "fit-for-plots")
+        mass="100"
+        combineTool.py -M FitDiagnostics \
+            -d ${datacarddir}/combined/cmb/ws.root \
+            -m ${mass} \
+            --setParameters r_ggH=0,r_bbH=0,r_qqX=0,r_ggX=0 --setParameterRange r_ggH=-25,25:r_bbH=-25,25 \
+            --freezeParameters r_qqX,r_ggX \
+            --redefineSignalPOIs r_ggH \
+            --X-rtd MINIMIZER_analytic \
+            --cminDefaultMinimizerStrategy 0 --cminDefaultMinimizerTolerance 0.1 \
+            --robustHesse 1 \
+            -n .combined-cmb.bestFit.mH${mass} \
+            --there \
+            -v 1 |& tee ${defaultdir}/logs/fitDiagnostics_${mass}.log
         ;;
 
     *)

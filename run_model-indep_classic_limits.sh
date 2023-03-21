@@ -8,7 +8,6 @@ if [[ $TAG == "auto" ]]; then
     TAG="cmb_ind"
 fi
 
-
 defaultdir=analysis_2022_02_28/$TAG
 analysis="bsm-model-indep"
 hSM_treatment="hSM-in-bg"
@@ -28,11 +27,41 @@ identifier_toy_submit=$(date +%Y_%m_%d)
 xrange () {
     [ "$#" != 1 ] && exit
     case $1 in
+        "60")
+            echo 18
+            ;;
+        "80")
+            echo 24
+            ;;
+        "100")
+            echo 30
+            ;;
+        "120")
+            echo 14
+            ;;
+        "125")
+            echo 10
+            ;;
+        "130")
+            echo 10
+            ;;
+        "140")
+            echo 5
+            ;;
+        "160")
+            echo 2.5
+            ;;
+        "180")
+            echo 1
+            ;;
+        "200")
+            echo 0.45
+            ;;
         "250")
             echo 0.12
             ;;
         "300")
-            echo 0.08
+            echo 0.075
             ;;
         "350")
             echo 0.05
@@ -100,17 +129,47 @@ xrange () {
 yrange () {
     [ "$#" != 1 ] && exit
     case $1 in
+        "60")
+            echo 40
+            ;;
+        "80")
+            echo 14
+            ;;
+        "100")
+            echo 4
+            ;;
+        "120")
+            echo 2.5
+            ;;
+        "125")
+            echo 2
+            ;;
+        "130")
+            echo 1.4
+            ;;
+        "140")
+            echo 1.3
+            ;;
+        "160")
+            echo 1
+            ;;
+        "180")
+            echo 0.6
+            ;;
+        "200")
+            echo 0.3
+            ;;
         "250")
             echo 0.12
             ;;
         "300")
-            echo 0.08
+            echo 0.07
             ;;
         "350")
             echo 0.06
             ;;
         "400")
-            echo 0.05
+            echo 0.055
             ;;
         "450")
             echo 0.06
@@ -140,7 +199,7 @@ yrange () {
             echo 0.002
             ;;
         "1600")
-            echo 0.0016
+            echo 0.0018
             ;;
         "1800")
             echo 0.0014
@@ -155,10 +214,10 @@ yrange () {
             echo 0.0008
             ;;
         "2900")
-            echo 0.0006
+            echo 0.0007
             ;;
         "3200")
-            echo 0.0006
+            echo 0.00065
             ;;
         "3500")
             echo 0.0006
@@ -328,19 +387,92 @@ elif [[ $MODE == "submit-local" ]]; then
 elif [[ $MODE == "collect" ]]; then
     for p in gg bb
     do
-        combineTool.py -M CollectLimits ${datacarddir}/combined/cmb/higgsCombine.${p}H*.root \
+        combineTool.py -M CollectLimits ${datacarddir}/combined/cmb/higgsCombine.${p}H*AsymptoticLimits*.root \
         --use-dirs \
-        -o ${datacarddir}/combined/cmb/mssm_${p}H_cmb.json
+        -o ${datacarddir}/combined/cmb/mssm_${p}H.json
 
-        plotMSSMLimits.py --cms-sub "Preliminary" \
-        --title-right "138 fb^{-1} (13 TeV)" \
-        --process "${p}#phi" \
-        --y-axis-min 0.0001 \
-        --y-axis-max 1000.0 \
-        --show exp,obs ${datacarddir}/combined/cmb/mssm_${p}H_cmb_cmb.json \
-        --output mssm_model-independent_${p}H_cmb \
-        --logx \
-        --logy
+        reldefaultdir=$(realpath --relative-to="$PWD" "${defaultdir}")
+        ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/scripts/plotMSSMLimits_for_thesis.py \
+            --title-right "138 fb^{-1} (13 TeV)" \
+            --x-title "m_{#phi} (GeV)" \
+            --process "${p}#phi" \
+            --y-axis-min 0.0001 \
+            --y-axis-max 100.0 \
+            --show exp ${datacarddir}/combined/cmb/mssm_${p}H_cmb.json \
+            --output ${reldefaultdir}/limits_ind/mssm_model-independent-expected_${p}H_cmb \
+            --logx \
+            --logy
+    done
+
+elif [[ "$MODE" == "prepare-hybrid" ]]; then
+    [[ ! -d ${defaultdir}/limits_ind_toys_v2/condor ]] && mkdir -p ${defaultdir}/limits_ind_toys_v2/condor
+    pushd ${defaultdir}/limits_ind_toys_v2/condor
+    # Trim down the results file to the mass range we are interested in.
+    # for p in gg bb; do
+    for p in gg; do
+        # python ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/scripts/trim_results_json.py -i ${datacarddir}/combined/cmb/mssm_${p}H_cmb.json \
+        #     --min-mass 2300
+
+        # Run the combineTool commands to create the jobs
+        combineTool.py -M HybridNewGridComp \
+            ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_hybrid_grid_model-indep_from-asymptotic_${p}H.json \
+            --cycles 250 \
+            --datacard ${datacarddir}/combined/cmb/ws.root \
+            --job-mode 'condor' --task-name ${p}H_full_cmb_hybrid_from_asymptotic --dry-run \
+            --from-asymptotic ${datacarddir}/combined/cmb/mssm_${p}H_cmb_trimmed.json
+    done
+
+elif [[ "$MODE" == "check-hybrid" ]]; then
+    [[ ! -d ${defaultdir}/limits_ind_toys_v2/condor ]] && echo "Please run preparation step beforehand." && exit 1
+    pushd ${defaultdir}/limits_ind_toys_v2/condor
+    # for p in gg bb; do
+    for p in gg; do
+        # Run the combineTool commands to create the jobs
+        combineTool.py -M HybridNewGridComp \
+            ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_hybrid_grid_model-indep_from-asymptotic_${p}H.json \
+            --cycles 100 \
+            --datacard ${datacarddir}/combined/cmb/ws.root \
+            --job-mode 'condor' --task-name ${p}H_full_cmb_hybrid_from_asymptotic --dry-run \
+            --from-asymptotic ${datacarddir}/combined/cmb/mssm_${p}H_cmb_trimmed.json
+    done
+
+elif [[ "$MODE" == "submit-hybrid-gc" ]]; then
+    for p in gg bb; do
+        gcworkdir=${defaultdir}/limits_ind_toys_v2/r_${p}H/gc_condor_${identifier_toy_submit}
+        mkdir -p ${gcworkdir}
+        python scripts/build_gc_job.py \
+            --combine-script ${defaultdir}/limits_ind_toys_v2/condor/condor_${p}H_full_cmb_hybrid_from_asymptotic.sh \
+            --workspace ${datacarddir}/combined/cmb/ws.root \
+            --workdir ${gcworkdir} \
+            --tag ${p}H_full_cmb_hybrid_from_asymptotic \
+            --se-path /storage/gridka-nrg/$(whoami)/gc_storage/combine/${p}H_full_cmb_hybrid_from_asymptotic_${identifier_toy_submit}
+
+        echo "Submit with ${CMSSW_BASE}/src/grid-control/go.py ${gcworkdir}/${p}H_full_cmb_hybrid_from_asymptotic.conf -Gc -m 3"
+        # ${CMSSW_BASE}/src/grid-control/go.py ${gcworkdir}/${p}H_full_cmb_hybrid_from_asymptotic_${identifier_toy_submit}.conf -G -m 3
+    done
+
+
+elif [[ "$MODE" == "copy-results-gc-hybrid" ]]; then
+    ############
+    # job submission
+    ############
+    for p in gg bb; do
+        rsync -avhP /storage/gridka-nrg/$(whoami)/gc_storage/combine/${p}H_full_cmb_hybrid_from_asymptotic_${identifier_toy_submit}/output/ ${defaultdir}/limits_ind_toys_v2/condor
+    done
+
+elif [[ "$MODE" == "collect-hybrid" ]]; then
+    pushd ${defaultdir}/limits_ind_toys_v2/condor
+    # for p in gg bb; do
+    for p in gg; do
+        # Run the combineTool commands to create the jobs
+        combineTool.py -M HybridNewGridComp \
+            ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_hybrid_grid_model-indep_from-asymptotic_${p}H.json \
+            --cycles 0 \
+            --job-mode 'condor' --task-name "test_merge_command_from_asymptotic_${p}H" --dry-run \
+            --datacard ${datacarddir}/combined/cmb/ws.root \
+            --from-asymptotic ${datacarddir}/combined/cmb/mssm_${p}H_cmb_trimmed.json \
+            --output
+            # --job-mode 'interactive' \
     done
 
 elif [[ $MODE == "prefit-plots" ]]; then
@@ -371,33 +503,37 @@ elif [[ $MODE == "prefit-plots" ]]; then
     done
 
 elif [[ $MODE == "fit-for-plots" ]]; then
+    mass="1200"
     combineTool.py -M FitDiagnostics \
         -d ${datacarddir}/combined/cmb/ws.root \
-        -m 200 \
-        --setParameters r_ggH=0,r_bbH=0 --setParameterRange r_ggH=-0.00001,0.00001:r_bbH=-2,5 \
-        --redefineSignalPOIs r_ggH --freezeParameters r_bbH,r_ggH \
+        -m ${mass} \
+        --setParameters r_ggH=0,r_bbH=0 --setParameterRange r_ggH=-0.03,0.03:r_bbH=-0.03,0.03 \
+        --redefineSignalPOIs r_ggH,r_bbH \
         --X-rtd MINIMIZER_analytic \
         --cminDefaultMinimizerStrategy 0 --cminDefaultMinimizerTolerance 0.1 \
         --robustHesse 1 \
-        -n .combined-cmb.for_shape_unblinding \
+        -n .combined-cmb.bestFit.secondRun.r_ggH.r_bbH.mH${mass} \
         --there \
-        -v 1
+        -v 1 \
+        |& tee ${defaultdir}/logs/fitDiagnostics_mH${mass}.log
+        # --redefineSignalPOIs r_ggH --freezeParameters r_bbH,r_ggH \
 
 elif [[ $MODE == "postfit-plots" ]]; then
     ######################
     # Extract postfit shapes.
     #####################
-    fitfile=${datacarddir}/combined/cmb/fitDiagnostics.combined-cmb.for_shape_unblinding.root
+    # fitfile=${datacarddir}/combined/cmb/fitDiagnostics.combined-cmb.for_shape_unblinding.root
+    fitfile=${datacarddir}/combined/cmb/fitDiagnostics.combined-cmb.bestFit.root
     for era in 2016 2017 2018; do
         prefit_postfit_shapes_parallel.py --datacard_pattern "${datacarddir}/${era}/htt_em_2_*/combined.txt.cmb" \
                                           --workspace_name ws.root \
-                                          --fit_arguments "-f ${fitfile}:fit_b --postfit --sampling" \
+                                          --fit_arguments "-f ${fitfile}:fit_b --postfit --sampling --skip-prefit" \
                                           --output_name postfit_shapes_${freeze}.root \
                                           --parallel 8 | tee -a ${defaultdir}/logs/extract_model_independent_shapes-postfit-combined-${freeze}.log
         prefit_postfit_shapes_parallel.py --datacard_pattern "${datacarddir}/${era}/htt_*_3*_*/combined.txt.cmb" \
                                           --workspace_name ws.root \
                                           --freeze_arguments "--freeze ${freeze}" \
-                                          --fit_arguments "-f ${fitfile}:fit_b --postfit --sampling" \
+                                          --fit_arguments "-f ${fitfile}:fit_b --postfit --sampling --skip-prefit" \
                                           --output_name postfit_shapes_${freeze}.root \
                                           --parallel 8 | tee -a ${defaultdir}/logs/extract_model_independent_shapes-postfit-combined-${freeze}.log
     done
@@ -419,60 +555,156 @@ elif [[ $MODE == "prepare-ggH-bbH-scan" ]]; then
     cd ${defaultdir}/ggH_bbH_scan_ind/condor
     # Run 2D likelihood scans for r_ggH and r_bbH
     combineTool.py -M MultiDimFit \
-        --algo grid --points 225 --split-points 50 \
-        -m "60,80,100,120,125,130,140,160,180,200,250,300,350,400,450,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2300,2600,2900,3200,3500" \
-        --boundlist ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_ggH_bbH_2D_boundaries.json \
+        --algo grid --points 4000 --alignEdges 1 --split-points 50 \
+        -m "60,80,100,120,125,130,140,160,180,200" \
+        --boundlist ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_ggH_bbH_2D_boundaries_lowmass_mttot.json \
         --setParameters r_ggH=0,r_bbH=0 --redefineSignalPOIs r_ggH,r_bbH \
         -d ${datacarddir}/combined/cmb/ws.root \
         --job-mode condor --dry-run --task-name ggH_bbH_likelihood_scan \
         --X-rtd MINIMIZER_analytic --cminDefaultMinimizerStrategy 0 --cminDefaultMinimizerTolerance 0.01 \
+        --cminFallbackAlgo Minuit2,Migrad,0:0.1 \
         -n ".ggH-bbH" \
         -v 1
-        # --there -n ".ggH-bbH"
-        # -m "60,80,100,120,125,130,140,160,180,200,250,300,350,400,450,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2300,2600,2900,3200,3500" \
+        # -m "250,500,1000,1200,3500" \
+        # -m "250,300,350,400,450,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2300,2600,2900,3200,3500" \
 
-    # Create asimov dataset for SM-expectation.
-    combineTool.py -M MultiDimFit \
-        --algo none \
-        -m "125" \
-        --boundlist ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_ggH_bbH_2D_boundaries.json \
-        --setParameters r_ggH=0,r_bbH=0 --redefineSignalPOIs r_ggH,r_bbH \
-        -d ${datacarddir}/combined/cmb/ws.root \
-        -t -1 --saveToys \
-        --there -n ".2D.ToyDataset.SM1" \
-        --dry-run
-        # -d output/mssm_201017_SMHbkg/cmb/ws.root \ TODO: maybe need different datacard here
-
-    # Copy it to correct location
-    # Copy only necessary in case different datacards are used for the asimov creation and the fits.
-    # cp output/mssm_070617_SMHbkg/cmb/higgsCombine.2D.ToyDataset.SM1.MultiDimFit.mH125.123456.root output/mssm_201017/cmb/higgsCombine.2D.ToyDataset.SM1.MultiDimFit.mH125.123456.root
-
-    # Run fits on this asimov dataset
-    combineTool.py -M MultiDimFit \
-        --algo none \
-        -m "60,80,100,120,125,130,140,160,180,200,250,300,350,400,450,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2300,2600,2900,3200,3500" \
-        --boundlist ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_ggH_bbH_2D_boundaries.json \
-        --setParameters r_ggH=0,r_bbH=0 --redefineSignalPOIs r_ggH,r_bbH \
-        -d ${datacarddir}/combined/cmb/ws.root \
-        -t -1 --toysFile higgsCombine.2D.ToyDataset.SM1.MultiDimFit.mH125.123456.root \
-        --job-mode condor --dry-run --task-name ggH_bbH_likelihood_SM --merge 3 \
-        --there -n ".2D.SM1.bestfit"
 
 elif [[ $MODE == "submit-ggH-bbH-scan" ]]; then
     cd ${defaultdir}/ggH_bbH_scan_ind/condor
     condor_submit condor_ggH_bbH_likelihood_scan.sub
-    # condor_submit condor_ggH_bbH_likelihood_SM.sub
+
+
+elif [[ "$MODE" == "submit-ggH-bbH-scan-gc" ]]; then
+    gcworkdir=${defaultdir}/ggH_bbH_scan_ind/gc_condor_${identifier_toy_submit}
+    mkdir -p ${gcworkdir}
+    python scripts/build_gc_job.py \
+        --combine-script ${defaultdir}/ggH_bbH_scan_ind/condor/condor_ggH_bbH_likelihood_scan.sh \
+        --workspace ${datacarddir}/combined/cmb/ws.root \
+        --workdir ${gcworkdir} \
+        --tag ggH_bbH_likelihood_scan \
+        --se-path /storage/gridka-nrg/$(whoami)/gc_storage/combine/ggH_bbH_likelihood_scan_${identifier_toy_submit}
+
+    echo "Submit with ${CMSSW_BASE}/src/grid-control/go.py ${gcworkdir}/ggH_bbH_likelihood_scan.conf -Gc -m 3"
+    # ${CMSSW_BASE}/src/grid-control/go.py ${gcworkdir}/ggH_bbH_likelihood_scan_${identifier_toy_submit}.conf -G -m 3
+
+
+elif [[ "$MODE" == "copy-results-ggH-bbH-scan" ]]; then
+    rsync -avhP /storage/gridka-nrg/$(whoami)/gc_storage/combine/ggH_bbH_likelihood_scan_${identifier_toy_submit}/output/ ${defaultdir}/ggH_bbH_scan_ind/condor
+
 
 elif [[ $MODE == "collect-ggH-bbH-scan" ]]; then
     cd ${defaultdir}/ggH_bbH_scan_ind/
-    for mass in 60 80 100 120 125 130 140 160 180 200 250 300 350 400 450 500 600 700 800 900 1000 1200 1400 1600 1800 2000 2300 2600 2900 3200 3500; do
-        python ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/plotting/plotMultiDimFit.py \
-            --title-right="138 fb^{-1} (13 TeV)" \
-            --cms-sub="Preliminary" \
-            --mass $mass \
-            -o 2D_limit_mH${mass} \
-            --debug-output test_mH${mass}.root \
-            condor/higgsCombine.ggH-bbH.POINTS.*.mH${mass}.root
+    smexp=""
+    # for mass in 250 300 350 400 450 500 600 700 800 900 1000 1200 1400 1600 1800 2000 2300 2600 2900 3200 3500; do
+    for mass in 60 80 100 120 125 130 140 160 180 200; do
+        [[ "$TAG" =~ NohSMinBackground$ ]] && smexp="--sm-exp ${datacarddir}/combined/cmb/higgsCombine.2D.SM1.bestfit.MultiDimFit.mH${mass}.root"
+        for cmssub in "" "Supplementary"; do
+            cmssubadd="_CMS"
+            [[ "$cmssub" == "Preliminary" ]] && cmssubadd=""
+            [[ "$cmssub" == "Supplementary" ]] && cmssubadd="_Supplementary"
+            isBkg=1
+            [[ "$TAG" =~ NohSMinBackground ]] && isBkg=0
+            for int in 0 1; do
+                if [[ $int -eq 1 ]]; then
+                    int_arg="--interpolate-missing"
+                    int_sub="_interpolated"
+                else
+                    int_arg=""
+                    int_sub=""
+                fi
+                python ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/plotting/plotMultiDimFit_for_thesis.py \
+                    --title-right="#font[62]{CMS} data 138 fb^{-1} (13 TeV)" \
+                    --mass $mass \
+                    -o 2D_limit_mH${mass}${cmssubadd}${int_sub} \
+                    ${smexp} \
+                    --debug-output test_mH${mass}${int_sub}.root \
+                    --x-axis-max $(xrange $mass) --y-axis-max $(yrange $mass) \
+                    ${int_arg} \
+                    --x-title "#sigma#font[42]{(gg#phi)}#font[52]{B}#font[42]{(#phi#rightarrow#tau#tau)} (pb)" \
+                    --y-title "#sigma#font[42]{(bb#phi)}#font[52]{B}#font[42]{(#phi#rightarrow#tau#tau)} (pb)" \
+                    condor/higgsCombine.ggH-bbH.POINTS.*.mH${mass}.root
+                    # --cms-sub=${cmssub} \
+                    # --likelihood-database \
+                    # --add-3sigma-contour \
+            done
+        done
     done
 
+elif [[ $MODE == "ggH-bbH-scan-SM-expectation" ]]; then
+    # TODO: This option only makes sense for the with hSM not in the background
+    # Create asimov dataset for SM-expectation.
+    combineTool.py -M MultiDimFit \
+        --algo none \
+        -m "125" \
+        --setParameters r_ggH=0,r_bbH=0 --redefineSignalPOIs r_ggH,r_bbH \
+        --boundlist ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_ggH_bbH_2D_boundaries.json \
+        -d $(dirname $defaultdir)/cmb_ind_hSMinBackground/datacards_bsm-model-indep/combined/cmb/ws.root \
+        --X-rtd MINIMIZER_analytic --cminDefaultMinimizerStrategy 0 --cminDefaultMinimizerTolerance 0.01 \
+        -t -1 --saveToys \
+        --there -n ".2D.ToyDataset.SM1" \
+        -v 1
+
+    # Copy it to correct location
+    rsync -av --progress $(dirname $defaultdir)/cmb_ind_hSMinBackground/datacards_bsm-model-indep/combined/cmb/higgsCombine.2D.ToyDataset.SM1.MultiDimFit.mH125.123456.root ${datacarddir}/combined/cmb/higgsCombine.2D.ToyDataset.SM1.MultiDimFit.mH125.123456.root
+
+    pushd ${defaultdir}/ggH_bbH_scan_ind/
+    # Run fits on this asimov dataset
+    combineTool.py -M MultiDimFit \
+        --algo none \
+        -m "250,300,350,400,450,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2300,2600,2900,3200,3500" \
+        --boundlist ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_ggH_bbH_2D_boundaries.json \
+        --X-rtd MINIMIZER_analytic --cminDefaultMinimizerStrategy 0 --cminDefaultMinimizerTolerance 0.01 \
+        --setParameters r_ggH=0,r_bbH=0 --redefineSignalPOIs r_ggH,r_bbH \
+        -d ${datacarddir}/combined/cmb/ws.root \
+        -t -1 --toysFile higgsCombine.2D.ToyDataset.SM1.MultiDimFit.mH125.123456.root \
+        --job-mode condor --dry-run --task-name ggH_bbH_likelihood_SM1 --merge 3 \
+        --there -n ".2D.SM1.bestfit"
+    popd
+
+elif [[ $MODE == "setup-sig" ]]; then
+    [[ ! -d ${defaultdir}/significance_ind/condor ]] && mkdir -p ${defaultdir}/significance_ind/condor
+    cd ${defaultdir}/significance_ind/condor
+    combineTool.py -M Significance \
+        -m "60,80,100,120,125,130,140,160,180,200,250,300,350,400,450,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2300,2600,2900,3200,3500" \
+        --boundlist ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_boundaries.json \
+        --setParameters r_ggH=0,r_bbH=0 \
+        --redefineSignalPOIs r_bbH \
+        -d ${datacarddir}/combined/cmb/ws.root \
+        --there -n ".bbH" \
+        --job-mode condor \
+        --dry-run \
+        --task-name bbH_full_cmb_Significance \
+        --X-rtd MINIMIZER_analytic \
+        --cminDefaultMinimizerStrategy 0 \
+        --cminDefaultMinimizerTolerance 0.01 \
+        -v 1 \
+        | tee -a ${defaultdir}/logs/job_setup_sigind_bbh.txt
+
+    combineTool.py -M Significance \
+        -m "60,80,100,120,125,130,140,160,180,200,250,300,350,400,450,500,600,700,800,900,1000,1200,1400,1600,1800,2000,2300,2600,2900,3200,3500" \
+        --boundlist ${CMSSW_BASE}/src/CombineHarvester/MSSMvsSMRun2Legacy/input/mssm_boundaries.json \
+        --setParameters r_ggH=0,r_bbH=0 \
+        --redefineSignalPOIs r_ggH \
+        -d ${datacarddir}/combined/cmb/ws.root \
+        --there -n ".ggH" \
+        --job-mode condor \
+        --dry-run \
+        --task-name ggH_full_cmb_Significance \
+        --X-rtd MINIMIZER_analytic \
+        --cminDefaultMinimizerStrategy 0 \
+        --cminDefaultMinimizerTolerance 0.01 \
+        -v 1 \
+        | tee -a ${defaultdir}/logs/job_setup_sigind_ggh.txt
+
+elif [[ $MODE == "submit-sig" ]]; then
+    cd ${defaultdir}/significance_ind/condor
+    condor_submit condor_ggH_full_cmb_Significance.sub
+    condor_submit condor_bbH_full_cmb_Significance.sub
+
+elif [[ $MODE == "collect-sig" ]]; then
+    for p in gg bb; do 
+        combineTool.py -M CollectLimits ${datacarddir}/combined/cmb/higgsCombine.${p}H.Significance.mH*.root \
+            --use-dirs \
+            -o ${datacarddir}/combined/cmb/mssm_significance_${p}H.json
+    done
 fi
