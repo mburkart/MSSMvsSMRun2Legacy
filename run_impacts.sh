@@ -43,22 +43,27 @@ taskname="impacts_${TAG}_${PROCESS}_mH${MASS}"
 case $MODE in
 
     prepare-submit)
-        pushd ${defaultdir}/impacts_${PROCESS}_mH${MASS}/condor
+        PARAMETER_RANGES="--setParameterRanges r_ggH=-1,1:r_bbH=-1,1"
+
+        pushd ${defaultdir}/impacts_${PROCESS}_mH${MASS}_${TAG}/condor
         combineTool.py -M Impacts -d ${datacarddir}/${ERA}/${CHANNEL}/ws.root \
                        --X-rtd MINIMIZER_analytic --cminDefaultMinimizerStrategy 0 \
                        --doInitialFit --robustFit 1 \
                        -t -1 -m $MASS \
-                       --setParameters r_ggH=0,r_bbH=0 --setParameterRanges r_ggH=-1.0,1.0:r_bbH=-1.0,1.0 \
-                       --redefineSignalPOIs ${signal_process} --freezeParameters ${freeze_process} -v 0 # --stepSize 0.01
+                       --setParameters r_ggH=0,r_bbH=0 $PARAMETER_RANGES \
+                       --redefineSignalPOIs ${signal_process} \
+                       -v 0 --stepSize 0.01
+                       # --redefineSignalPOIs ${signal_process} --freezeParameters ${freeze_process} \
                        # --rAbsAcc 0 --rRelAcc 0.0005 \
 
         combineTool.py -M Impacts -d ${datacarddir}/${ERA}/${CHANNEL}/ws.root \
                        --X-rtd MINIMIZER_analytic --cminDefaultMinimizerStrategy 0 \
                        --robustFit 1 --doFits \
                        -t -1 -m $MASS \
-                       --setParameters r_ggH=0,r_bbH=0 --setParameterRanges r_ggH=-1.0,1.0:r_bbH=-1.0,1.0 \
-                       --redefineSignalPOIs ${signal_process} --freezeParameters ${freeze_process} \
+                       --setParameters r_ggH=0,r_bbH=0 $PARAMETER_RANGES \
+                       --redefineSignalPOIs ${signal_process} \
                        --job-mode condor --task-name ${taskname} --dry-run --merge 5
+                       # --redefineSignalPOIs ${signal_process} --freezeParameters ${freeze_process} \
                        # --rAbsAcc 0 --rRelAcc 0.0005 \
         popd
         ;;
@@ -81,7 +86,7 @@ case $MODE in
             --workspace ${datacarddir}/${ERA}/${CHANNEL}/ws.root \
             --workdir /work/mburkart/workdirs/combine/${taskname} \
             --tag ${taskname} \
-            --se-path /storage/gridka-nrg/mburkart/gc_storage/combine/${TAG}/${taskname}
+            --se-path /storage/gridka-nrg/mburkart/gc_storage/combine/impacts_${TAG}/${taskname}
 
         ${CMSSW_BASE}/src/grid-control/go.py /work/mburkart/workdirs/combine/${taskname}/${taskname}.conf -Gc -m 3
         ;;
@@ -90,17 +95,17 @@ case $MODE in
         ############
         # job submission
         ############
-        rsync -avhP /storage/gridka-nrg/mburkart/gc_storage/combine/${TAG}/${taskname}/output/ ${defaultdir}/impacts_${PROCESS}_mH${MASS}/condor
+        rsync -avhP /storage/gridka-nrg/mburkart/gc_storage/combine/impacts_${TAG}/${taskname}/output/ ${defaultdir}/impacts_${PROCESS}_mH${MASS}_${TAG}/condor
         ;;
 
     collect)
         ############
         # job collection
         ############
-        pushd ${defaultdir}/impacts_${PROCESS}_mH${MASS}/condor
+        pushd ${defaultdir}/impacts_${PROCESS}_mH${MASS}_${TAG}/condor
         combineTool.py -M Impacts -d ${datacarddir}/${ERA}/${CHANNEL}/ws.root -m $MASS -o ${ERA}_${CHANNEL}_${signal_process}_${MASS}_impacts.json --redefineSignalPOIs ${signal_process} --exclude ${freeze_process}
 
-        plotImpacts.py -i ${ERA}_${CHANNEL}_${signal_process}_${MASS}_impacts.json -o ${ERA}_${CHANNEL}_${signal_process}_${MASS}_impacts --transparent --translate ${CMSSW_BASE}/src/translate.json --blind # _nobbb --no-bbb
+        plotImpacts.py -i ${ERA}_${CHANNEL}_${signal_process}_${MASS}_impacts.json -o ${ERA}_${CHANNEL}_${signal_process}_${MASS}_impacts --transparent --translate ${CMSSW_BASE}/src/translate.json --blind
         popd
         ;;
 
