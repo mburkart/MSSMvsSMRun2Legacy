@@ -1,0 +1,103 @@
+#!/usr/bin/env python
+import os
+
+import ROOT
+import array
+
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--input-dir",
+                    type=str,
+                    help="Input directory")
+parser.add_argument('--bOnly', help= 'Use b-only fit result', action='store_true')
+args = parser.parse_args()
+
+os.chdir(args.input_dir)
+
+if args.bOnly:
+    fout = ROOT.TFile('shapes_cbyears_bOnly-combinedFit.root','RECREATE')
+else:
+    fout = ROOT.TFile('shapes_cbyears.root','RECREATE')
+
+cb_procs = ['TotalBkg',	'TotalProcs', 'TotalSig', 'data_obs']
+
+procs = {}
+procs['lt'] = ['EMB','TTL','VVL','ZL','bbH125','bbh','ggH125','ggh_b','ggh_i','ggh_t','jetFakes','qqH125']
+procs['em'] = ['EMB','QCD','TTL','VVL','W','WHWW125','ZHWW125','ZL','bbH125','bbh','ggH125','ggHWW125','ggh_b','ggh_i','ggh_t','qqH125','qqHWW125']
+procs['tt'] = ['EMB','TTL','VVL','ZL','bbH125','bbh','ggH125','ggh_b','ggh_i','ggh_t','jetFakes','qqH125','wFakes']
+
+dir_map = {
+  'tt_32' : 'tt_Nbtag0',
+  'tt_35' : 'tt_NbtagGt1',
+  'mt_32' : 'mt_Nbtag0_MTLt40',
+  'mt_33' : 'mt_Nbtag0_MT40To70',
+  'mt_35' : 'mt_NbtagGt1_MTLt40',
+  'mt_36' : 'mt_NbtagGt1_MT40To70',
+  'et_32' : 'et_Nbtag0_MTLt40',
+  'et_33' : 'et_Nbtag0_MT40To70',
+  'et_35' : 'et_NbtagGt1_MTLt40',
+  'et_36' : 'et_NbtagGt1_MT40To70',
+  'em_32' : 'em_Nbtag0_DZetaGt30',
+  'em_33' : 'em_Nbtag0_DZetam10To30',
+  'em_34' : 'em_Nbtag0_DZetam35Tom10',
+  'em_35' : 'em_NbtagGt1_DZetaGt30',
+  'em_36' : 'em_NbtagGt1_DZetam10To30',
+  'em_37' : 'em_NbtagGt1_DZetam35Tom10',
+}
+
+
+# for c in ['lt']:
+for c in ['lt','tt','em']:
+    bins = ['32_mt_tot','35_mt_tot']
+    if c in ['lt','em']:
+        bins.extend(['33_mt_tot','36_mt_tot'])
+    if c in ['em']:
+        bins.extend(['34_mt_tot','37_mt_tot'])
+    for b in bins:
+        out_dir = 'htt_%(c)s_%(b)s_postfit' % vars()
+        fout.mkdir(out_dir)
+
+        if args.bOnly:
+            fin = ROOT.TFile('shapes_cbyears_bOnly_%(c)s_%(b)s-combinedFit.root' % vars())
+        else:
+            fin = ROOT.TFile('shapes_cbyears_%(c)s_%(b)s.root' % vars())
+
+        print fin, 'shapes_cbyears_bOnly_%(c)s_%(b)s.root' % vars()
+
+
+        if c == 'lt':
+            chans = ['mt','et']
+        else:
+            chans = [c]
+
+        # get totals first
+        for x in cb_procs:
+          h = fin.Get('postfit/%(x)s' % vars())
+          fout.cd(out_dir)
+          h.Write()
+
+        # loop over each process, hadd histograms for different years / channels then write the total to the file
+        for x in procs[c]:
+            h = fin.Get('postfit/data_obs').Clone()
+            h.Reset()
+            h.SetName(x)
+            for y in [2016, 2017, 2018]:
+                for chan in chans:
+                    if isinstance(b,str) and 'mt_tot' in str(b):
+                        b_=b.replace('_mt_tot','')
+                    else:
+                        b_ = b
+                    indir = 'htt_%(chan)s_%(b_)s_%(y)s_postfit' % vars()
+                    htemp = fin.Get('%(indir)s/%(x)s' % vars())
+                    if chan =='em' and 'mt_tot' not in str(b):
+                        b_ = b + 1
+                        indir2 = 'htt_%(chan)s_%(b_)s_%(y)s_postfit' % vars()
+                        htemp2 = fin.Get('%(indir2)s/%(x)s' % vars())
+                        if isinstance(htemp2,ROOT.TH1D) or isinstance(htemp2,ROOT.TH1F):
+                            htemp.Add(htemp2)
+                    if isinstance(htemp,ROOT.TH1D) or isinstance(htemp,ROOT.TH1F):
+                        h.Add(htemp)
+
+            fout.cd(out_dir)
+            h.Write()
