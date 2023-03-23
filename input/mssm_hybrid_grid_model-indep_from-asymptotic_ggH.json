@@ -1,0 +1,12 @@
+{
+    "verbose": false,
+    "grids": [],
+    "POIs": ["MH", "r_ggH"],
+    "opts": "--LHCmode LHC-limits --saveHybridResult --saveToys --clsAcc 0 --fork 0 --fullBToys --redefineSignalPOIs r_ggH --setParameters r_bbH=0 --setParameterRanges CMS_htt_ttbarShape=-1.,1.",
+    "toys_per_cycle": 20,
+    "signif"          : 4.0,
+    "CL"              : 0.95,
+    "contours"        : ["exp-2", "exp-1", "exp0", "exp+1", "exp+2"],
+    "output"          : "HybridNewGridModelIndependent_ggH.root",
+    "output_incomplete" : true
+}
